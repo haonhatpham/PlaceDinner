@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from foods.views import UserViewSet
 
 router = DefaultRouter()
-router.register('auth', UserViewSet, basename='auth')
+router.register('user', UserViewSet, basename='user')
 
 urlpatterns = [
     path('', include(router.urls))  # Sử dụng router

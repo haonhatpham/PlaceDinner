@@ -29,13 +29,8 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
     # Ghi đè phương thức create để xử lý tạo đồng thời User và Account
     def create(self, validated_data):
         # Bước 1: Tách thông tin user từ dữ liệu đã validate
-        user_data = {
-            'username': validated_data.pop('username'),
-            'password': make_password(validated_data.pop('password')),
-            'email': validated_data.pop('email'),
-            'first_name': validated_data.pop('first_name', ''),
-            'last_name': validated_data.pop('last_name', '')
-        }
+        user_data = validated_data.pop('user')
+        user_data['password'] = make_password(user_data['password'])  # Băm password
         # Tạo user
         user = User.objects.create(**user_data)
         # Tạo account
@@ -59,6 +54,6 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
             data['avatar'] = ''  # Hoặc có thể trả về None hoặc URL ảnh mặc định
 
         # Hiển thị giá trị choice field -> Khách hàng thay vì CUSTOMER trong db
-        data['role_display'] = instance.get_role_display()
+        data['role'] = instance.get_role_display()
 
         return data
