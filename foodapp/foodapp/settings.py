@@ -155,3 +155,4 @@ OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSO
 
 CLIENT_ID= 'jxXtCYDpt0TKiyZ7xwSVrWnoG7U8YavUgj7jxcyv'
 CLIENT_SECRET = 'Npi0HuzajTtkWY3FVUcBzvhidmZFngPhXj7SV3aWFfEnJvrHFazAnaao2aFr2hUmwsmUmnMwvCgqAWOI8wQoOfon52GImFPLUgm09rYQEVmico8LWIT0W5N8uoiuzZma'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa nếu cần

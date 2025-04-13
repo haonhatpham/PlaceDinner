@@ -13,24 +13,12 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         try:
-            with transaction.atomic():
+            with transaction.atomic():#Đảm bảo xảy ra , không thì không lưu
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 account = serializer.save()
 
-                response_data = {
-                    'user_id': account.user.id,
-                    'account_id': account.id,
-                    'role': account.role,
-                    'avatar': account.avatar.url if account.avatar else None
-                }
-
-                if account.role == Account.Role.STORE:
-                    response_data['store_status'] = 'pending_approval'
-                    response_data['message'] = 'Đăng ký cửa hàng thành công. Vui lòng chờ admin phê duyệt'
-                else:
-                    response_data['message'] = 'Đăng ký thành công'
-
+                response_data = serializer.to_representation(account)
                 return Response(response_data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
