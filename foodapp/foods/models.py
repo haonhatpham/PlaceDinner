@@ -58,3 +58,114 @@ class Store(BaseModel):
 
     def __str__(self):
         return self.name
+
+class Category(BaseModel):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Food(BaseModel):
+    class MealTime(models.TextChoices):
+        BREAKFAST = 'BREAKFAST', 'Bữa sáng'
+        LUNCH = 'LUNCH', 'Bữa trưa'
+        DINNER = 'DINNER', 'Bữa tối'
+        ANYTIME = 'ANYTIME', 'Cả ngày'
+
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='foods')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    name = models.CharField(max_length=255)
+    description = RichTextField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    image = CloudinaryField('food_image')
+    meal_time = models.CharField(max_length=10, choices=MealTime.choices, default=MealTime.ANYTIME)
+    is_available = models.BooleanField(default=True)
+    available_from = models.TimeField(null=True, blank=True)
+    available_to = models.TimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Order(BaseModel):
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Chờ xác nhận'
+        CONFIRMED = 'CONFIRMED', 'Đã xác nhận'
+        DELIVERING = 'DELIVERING', 'Đang giao'
+        COMPLETED = 'COMPLETED', 'Hoàn thành'
+        CANCELLED = 'CANCELLED', 'Đã hủy'
+
+    class PaymentMethod(models.TextChoices):
+        CASH = 'CASH', 'Tiền mặt'
+        MOMO = 'MOMO', 'Momo'
+        PAYPAL = 'PAYPAL', 'PayPal'
+        STRIPE = 'STRIPE', 'Stripe'
+        ZALOPAY = 'ZALOPAY', 'ZaloPay'
+
+    customer = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='orders')
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='orders')
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices)
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    delivery_address = models.CharField(max_length=255)
+    note = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Order #{self.id} - {self.customer}"
+
+
+class OrderItem(BaseModel):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    food = models.ForeignKey(Food, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.quantity}x {self.food.name}"
+
+
+class Review(BaseModel):
+    RATING_CHOICES = [
+        (1, '1 sao'),
+        (2, '2 sao'),
+        (3, '3 sao'),
+        (4, '4 sao'),
+        (5, '5 sao'),
+    ]
+
+    customer = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='reviews')
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='reviews')
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, null=True, blank=True)
+    rating = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    comment = models.TextField()
+    image = CloudinaryField('review_image', null=True, blank=True)
+
+    def __str__(self):
+        target = self.store if self.store else self.food
+        return f"Review {self.rating} sao cho {target}"
+
+
+class Follow(BaseModel):
+    customer = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='following')
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='followers')
+
+    class Meta:
+        unique_together = ('customer', 'store')
+
+    def __str__(self):
+        return f"{self.customer} follows {self.store}"
+
+
+class Notification(BaseModel):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    notification_type = models.CharField(max_length=50)# 'NEW_FOOD', 'NEW_MENU',...
+    related_id = models.PositiveIntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return self.title

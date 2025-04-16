@@ -1,14 +1,10 @@
 # foods/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import User, Account,Store
+from .models import User, Account, Store, Food, Category, Notification,Review,Follow
 
 
 class AccountRegisterSerializer(serializers.ModelSerializer):
-    """
-        Serializer cho model Account, xử lý thông tin tài khoản mở rộng
-        Lồng ghép UserSerializer để xử lý cùng lúc thông tin User và Account
-    """
     username = serializers.CharField(source='user.username', write_only=True)
     password = serializers.CharField(source='user.password', write_only=True)
     email = serializers.EmailField(source='user.email')
@@ -57,3 +53,57 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
         data['role'] = instance.get_role_display()
 
         return data
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+
+class FoodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Food
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Hiển thị thông tin category và meal_time dạng text thay vì value
+        data['category'] = CategorySerializer(instance.category).data if instance.category else None
+        data['meal_time'] = instance.get_meal_time_display()
+        return data
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = '__all__'
+        read_only_fields = ('account',)
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    customer = serializers.StringRelatedField(read_only=True)  # Hiển thị tên user
+
+    class Meta:
+        model = Review
+        fields = ['id', 'customer', 'store', 'food', 'rating', 'comment', 'image', 'created_date']
+        read_only_fields = ('customer', 'created_date')
+
+    def validate(self, data):
+        # Kiểm tra: review phải thuộc store HOẶC food, không được cả hai
+        if not (data.get('store') or data.get('food')):
+            raise serializers.ValidationError("Review phải thuộc cửa hàng hoặc món ăn")
+        if data.get('store') and data.get('food'):
+            raise serializers.ValidationError("Chỉ được review 1 đối tượng mỗi lần")
+        return data
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['rating_display'] = instance.get_rating_display()
+        return data
+
+class FollowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Follow
+        fields = '__all__'
+        read_only_fields = ('customer',)
