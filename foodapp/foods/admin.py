@@ -21,4 +21,3 @@
 # my_admin_site = FoodManageAppAdminSite(name='NhatHao_Admin')
 # my_admin_site.register(User,UserAdmin)
 # my_admin_site.register(Account,AccountAdmin)
-#
