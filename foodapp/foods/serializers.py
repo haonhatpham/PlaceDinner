@@ -11,46 +11,94 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name', required=False)
     last_name = serializers.CharField(source='user.last_name', required=False)
 
+    # Thông tin cửa hàng (chỉ dùng khi role là STORE)
+    latitude = serializers.FloatField(write_only=True, required=False)
+    longitude = serializers.FloatField(write_only=True, required=False)
+    address = serializers.CharField(write_only=True, required=False)
+    description = serializers.CharField(write_only=True, required=False)
+    opening_hours = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = Account
         fields = [
             'username', 'password', 'email',
             'first_name', 'last_name', 'avatar',
-            'role', 'phone_number'
+            'role', 'phone_number', 'latitude',
+            'longitude', 'address', 'description',
+            'opening_hours'
         ]
         extra_kwargs = {
             'password': {'write_only': True},
         }
 
-    # Ghi đè phương thức create để xử lý tạo đồng thời User và Account
+    def validate(self, attrs):
+        role = attrs.get('role', Account.Role.CUSTOMER)
+
+        # Avatar bắt buộc khi role là STORE
+        if role == Account.Role.STORE and not attrs.get('avatar'):
+            raise serializers.ValidationError({
+                'avatar': 'Avatar là bắt buộc đối với tài khoản cửa hàng!'
+            })
+
+        # Kiểm tra các trường thông tin cửa hàng khi role là STORE
+        if role == Account.Role.STORE:
+            required_fields = ['latitude', 'longitude', 'address', 'description', 'opening_hours']
+            for field in required_fields:
+                if not attrs.get(field):
+                    raise serializers.ValidationError({
+                        field: f'Trường {field} là bắt buộc đối với tài khoản cửa hàng!'
+                    })
+
+        return attrs
+
     def create(self, validated_data):
-        # Bước 1: Tách thông tin user từ dữ liệu đã validate
+        # Tách thông tin user từ dữ liệu đã validate
         user_data = validated_data.pop('user')
         user_data['password'] = make_password(user_data['password'])  # Băm password
-        # Tạo user
+
+        # Tạo User
         user = User.objects.create(**user_data)
-        # Tạo account
+
+        # Tách các trường liên quan đến Store
+        store_data = {}
+        for field in ['latitude', 'longitude', 'address', 'description', 'opening_hours']:
+            if field in validated_data:
+                store_data[field] = validated_data.pop(field)
+
+        # Tạo Account
         account = Account.objects.create(user=user, **validated_data)
-        # Nếu là cửa hàng thì tạo Store
+
+        # Nếu role là STORE, tạo Store
         if account.role == Account.Role.STORE:
-            Store.objects.create(account=account, name=f"Cửa hàng {user.username}")
+            Store.objects.create(account=account, name=f"Cửa hàng {user.username}", **store_data)
 
         return account
 
-    # Hàm này ghi đè cách dữ liệu Account được hiển thị
     def to_representation(self, instance):
         # Gọi phương thức gốc trước
         data = super().to_representation(instance)
 
         # Xử lý avatar URL
         if instance.avatar:
-            # Nếu dùng Cloudinary, avatar đã là URL đầy đủ
             data['avatar'] = instance.avatar.url if hasattr(instance.avatar, 'url') else str(instance.avatar)
         else:
-            data['avatar'] = ''  # Hoặc có thể trả về None hoặc URL ảnh mặc định
+            data['avatar'] = ''  # Hoặc URL ảnh mặc định
 
-        # Hiển thị giá trị choice field -> Khách hàng thay vì CUSTOMER trong db
+        # Hiển thị giá trị choice field
         data['role'] = instance.get_role_display()
+
+        # Thêm thông tin cửa hàng nếu role là STORE
+        if instance.role == Account.Role.STORE and hasattr(instance, 'store'):
+            data['store'] = {
+                'name': instance.store.name,
+                'latitude': instance.store.latitude,
+                'longitude': instance.store.longitude,
+                'address': instance.store.address,
+                'description': instance.store.description,
+                'opening_hours': instance.store.opening_hours,
+                'is_active': instance.store.is_active,
+                'is_approved': instance.store.is_approved,
+            }
 
         return data
 
@@ -107,3 +155,8 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
         fields = '__all__'
         read_only_fields = ('customer',)
+
+class StoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Store
+        fields = '__all__'

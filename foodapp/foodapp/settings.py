@@ -99,7 +99,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'hieu',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -156,3 +156,7 @@ OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSO
 CLIENT_ID= 'jxXtCYDpt0TKiyZ7xwSVrWnoG7U8YavUgj7jxcyv'
 CLIENT_SECRET = 'Npi0HuzajTtkWY3FVUcBzvhidmZFngPhXj7SV3aWFfEnJvrHFazAnaao2aFr2hUmwsmUmnMwvCgqAWOI8wQoOfon52GImFPLUgm09rYQEVmico8LWIT0W5N8uoiuzZma'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa nếu cần
+
+
+CLIENT_ID_H='QLhO1FlpPlfTw25OUnXLuRKzPeXs3foK2aDC4lqy'
+CLIENT_SECRET_H='UEKGKn4QHSLRHl7261JK6hNA5mFUa3Ii5j2Htf9iYoxn5xAyD0lRKtNB4aEThAhyMzHtbQfreXPiH3RL0rQtXDvaCvTU0947hM4gxahxAeVWWQdCbyNTFimvZ2H9F6fg'

@@ -8,7 +8,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import *
 from  .permissions import *
 from django.core.mail import send_mail
-from rest_framework.generics import get_object_or_404
+from rest_framework.generics import get_object_or_404, RetrieveAPIView
+
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = AccountRegisterSerializer
@@ -162,3 +163,27 @@ class FollowViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIVi
 #         if self.request.user.account.role == Account.Role.CUSTOMER:
 #             serializer.save(customer=self.request.user.account)
 
+class StoreViewSet(viewsets.ViewSet,generics.ListAPIView, generics.UpdateAPIView):
+    queryset = Store.objects.all()
+    serializer_class = StoreSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail= True,methods=['patch'])
+    def approve_store(self,request,pk=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            store.is_active = True
+            store.is_approved = True
+            store.save()
+            return Response({'message': f'Cửa hàng "{store.name}" đã được duyệt thành công!'})
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'],url_path='is_approved')
+    def get_stores(self, request, pk=None):
+        try:
+            is_approved = Store.objects.filter(is_active=False)
+            serializer = self.get_serializer(is_approved, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
