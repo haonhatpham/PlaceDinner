@@ -95,6 +95,22 @@ class Food(BaseModel):
         return self.name
 
 
+class Menu(BaseModel):
+    MENU_TYPE_CHOICES = (
+        ('BREAKFAST', 'Bữa sáng'),
+        ('LUNCH', 'Bữa trưa'),
+        ('DINNER', 'Bữa tối'),
+    )
+
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='menus')
+    name = models.CharField(max_length=255)
+    menu_type = models.CharField(max_length=10, choices=MENU_TYPE_CHOICES)
+    # Liên kết nhiều-nhiều với món ăn
+    foods = models.ManyToManyField('Food', related_name='menus')
+
+    def __str__(self):
+        return f"{self.name} ({self.store.name})"
+
 class Order(BaseModel):
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Chờ xác nhận'
