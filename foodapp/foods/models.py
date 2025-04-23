@@ -53,8 +53,14 @@ class Store(BaseModel):
     latitude = models.FloatField()
     longitude = models.FloatField()
     opening_hours = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=False)
-    is_approved = models.BooleanField(default=False)  # Thêm trường để admin phê duyệt
+    is_approved = models.BooleanField(default=False) # Chờ admin duyệt
+
+    # Override constructor để active mặc định là False cho Store
+    def __init__(self, *args, **kwargs):
+        # Đảm bảo khi tạo mới Store, active sẽ mặc định là False
+        if 'active' not in kwargs:
+            kwargs['active'] = False
+        super().__init__(*args, **kwargs)
 
     def __str__(self):
         return self.name

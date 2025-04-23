@@ -41,9 +41,15 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "foods.apps.FoodsConfig",
     "rest_framework",
-    "drf_yasg",
+    "drf_yasg", #Swagger UI
     "oauth2_provider",
+    'celery',
+    'django_celery_results',
+    'django_celery_beat',
+    'ckeditor',
+    'ckeditor_uploader'
 ]
+CKEDITOR_UPLOAD_PATH = "ckeditors/images/"
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ( 'oauth2_provider.contrib.rest_framework.OAuth2Authentication',)
@@ -72,6 +78,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "foodapp.urls"
+import os
 
 TEMPLATES = [
     {
@@ -99,7 +106,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': 'hieu',
+        'PASSWORD': '1234',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -160,3 +167,13 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa n�
 
 CLIENT_ID_H='QLhO1FlpPlfTw25OUnXLuRKzPeXs3foK2aDC4lqy'
 CLIENT_SECRET_H='UEKGKn4QHSLRHl7261JK6hNA5mFUa3Ii5j2Htf9iYoxn5xAyD0lRKtNB4aEThAhyMzHtbQfreXPiH3RL0rQtXDvaCvTU0947hM4gxahxAeVWWQdCbyNTFimvZ2H9F6fg'
+
+# Cấu hình Redis làm broker cho Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'django-db'
+
+# Cấu hình Celery
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'

@@ -19,6 +19,7 @@ from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from foods.admin import my_admin_site  # Đường dẫn phù hợp với tên app của bạn
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -34,7 +35,8 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('', include('foods.urls')),  # Đường dẫn API thống nhất
-    path('admin/', admin.site.urls),
+    path('admin/', my_admin_site.urls),
+    re_path(r'^ckeditor/',include('ckeditor_uploader.urls')),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$',
             schema_view.without_ui(cache_timeout=0),
             name='schema-json'),

@@ -9,7 +9,10 @@ from .models import *
 from  .permissions import *
 from django.core.mail import send_mail
 from rest_framework.generics import get_object_or_404, RetrieveAPIView
-
+from django.db.models import Q
+from django.views.generic import View
+from django.contrib.auth import logout
+from django.shortcuts import render, redirect
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = AccountRegisterSerializer
@@ -38,7 +41,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         serializer = AccountRegisterSerializer(account)
         return Response(serializer.data)
 
-#Lấy danh sách và xem chi tiết món ăn
+#Cho chức năng tìm kiếm món ăn của customer
 class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView,generics.CreateAPIView):
     serializer_class = FoodSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -59,10 +62,13 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
         # Lọc theo khoảng giá
         min_price = self.request.query_params.get('min_price')
         max_price = self.request.query_params.get('max_price')
-        if min_price:
-            queryset = queryset.filter(price__gte=min_price)
-        if max_price:
-            queryset = queryset.filter(price__lte=max_price)
+        if min_price or max_price:
+            price_filter = Q()
+            if min_price:
+                price_filter &= Q(price__gte=min_price)
+            if max_price:
+                price_filter &= Q(price__lte=max_price)
+            queryset = queryset.filter(price_filter)
 
         return queryset
 
@@ -71,39 +77,22 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
             return [permissions.IsAuthenticated(), IsStoreOwnerOrAdmin()]
         return [permissions.AllowAny()]
 
-    def perform_create(self, serializer):
-        """Xử lý khi tạo món mới (bao gồm gửi thông báo)"""
-        with transaction.atomic():  # Đảm bảo toàn vẹn dữ liệu
-            #Lưu món ăn, tự động gán cửa hàng của user hiện tại
-            store = self.request.user.account.store
-            food = serializer.save(store=store)
+    # Cho review(comment + rating)
+    @action(detail=True, methods=['get', 'post'], url_path='reviews',permission_classes=[permissions.IsAuthenticatedOrReadOnly])
+    def reviews(self, request, pk=None):
+        food = get_object_or_404(Food, pk=pk)
 
-            #Gửi thông báo cho followers
-            followers = Follow.objects.filter(store=store).select_related('customer__user')
-            for follow in followers:
-                self._create_notification(follow.customer, store, food)
-                self._send_email_if_possible(follow.customer.user, store, food)
+        if request.method == 'GET':
+            reviews = food.reviews.all()
+            serializer = ReviewSerializer(reviews, many=True)
+            return Response(serializer.data)
 
-    def _create_notification(self, customer, store, food):
-        """Tạo thông báo trong database"""
-        Notification.objects.create(
-            account=customer,
-            title=f"🍜 {store.name} có món mới!",
-            message=f"{food.name} - Giá: {food.price:,}đ",
-            notification_type='NEW_FOOD',
-            related_id=food.id
-        )
-
-    def _send_email_if_possible(self, user, store, food):
-        """Gửi email nếu user có email (tuỳ chọn)"""
-        if user.email:
-            send_mail(
-                subject=f"📢 {store.name} vừa thêm {food.name}",
-                message=f"Đặt ngay món {food.name} với giá {food.price:,}đ!",
-                from_email="no-reply@foodapp.com",
-                recipient_list=[user.email],
-                fail_silently=True
-            )
+        elif request.method == 'POST':
+            serializer = ReviewSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(customer=request.user.account, food=food)
+                return Response(serializer.data, status=201)
+            return Response(serializer.errors, status=400)
 
 class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = NotificationSerializer
@@ -124,47 +113,8 @@ class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
         Notification.objects.filter(account=request.user.account, is_read=False).update(is_read=True)
         return Response({'status': 'Đã đánh dấu tất cả là đã đọc'})
 
-class FollowViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView, generics.DestroyAPIView):
-    serializer_class = FollowSerializer
-    permission_classes = [permissions.IsAuthenticated, IsCustomer]
-
-    def get_queryset(self):
-        return Follow.objects.filter(customer=self.request.user.account)
-
-# chưa xong
-# class ReviewViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
-#     serializer_class = ReviewSerializer
-#     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-#     filter_backends = [DjangoFilterBackend]
-#     filterset_fields = ['store', 'food', 'rating']
-#
-#     def get_queryset(self):
-#         # Lọc reviews theo store_id hoặc food_id nếu có trong URL
-#         queryset = Review.objects.all()
-#
-#         # Lấy từ URL pattern: /stores/{id}/reviews/
-#         store_id = self.request.query_params.get('store_id')
-#         if store_id:
-#             queryset = queryset.filter(store_id=store_id)
-#
-#         # Lấy từ URL pattern: /foods/{id}/reviews/
-#         food_id = self.request.query_params.get('food_id')
-#         if food_id:
-#             queryset = queryset.filter(food_id=food_id)
-#
-#         return queryset
-#
-#     def get_permissions(self):
-#         if self.action in ['create']:
-#             return [permissions.IsAuthenticated(), IsCustomer()]
-#         return [permissions.AllowAny()]
-#
-#     def perform_create(self, serializer):
-#         if self.request.user.account.role == Account.Role.CUSTOMER:
-#             serializer.save(customer=self.request.user.account)
-
-class StoreViewSet(viewsets.ViewSet,generics.ListAPIView, generics.UpdateAPIView):
-    queryset = Store.objects.all()
+class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
+    queryset = Store.objects.filter(is_approved=True)
     serializer_class = StoreSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -172,18 +122,80 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView, generics.UpdateAPIView
     def approve_store(self,request,pk=None):
         try:
             store = Store.objects.get(pk=pk)
-            store.is_active = True
+            store.active = True
             store.is_approved = True
             store.save()
             return Response({'message': f'Cửa hàng "{store.name}" đã được duyệt thành công!'})
         except Store.DoesNotExist:
             return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['get'],url_path='is_approved')
-    def get_stores(self, request, pk=None):
+    @action(detail=False, methods=['get'],url_path='pending')
+    def pending(self, request, pk=None):
+        # Danh sách cửa hàng chưa duyệt (admin)
         try:
-            is_approved = Store.objects.filter(is_active=False)
-            serializer = self.get_serializer(is_approved, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            stores = Store.objects.filter(is_approved=False)
+            serializer = StoreSerializer(stores, many=True)
+            return Response(serializer.data)
         except Store.DoesNotExist:
             return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Cho follower
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def follow(self, request, pk=None):
+        store = get_object_or_404(Store, pk=pk)
+        customer = request.user.account
+
+        # Kiểm tra role Customer
+        if customer.role != Account.Role.CUSTOMER:
+            return Response({"error": "Chỉ khách hàng được theo dõi"}, status=403)
+
+        # Tạo hoặc xóa quan hệ theo dõi
+        follow, created = Follow.objects.get_or_create(customer=customer, store=store)
+
+        if not created:
+            follow.delete()
+            return Response({"status": "Đã bỏ theo dõi"})
+
+        return Response({"status": "Đã theo dõi cửa hàng"})
+
+    # Cho review(comment + rating)
+    @action(detail=True, methods=['get', 'post'], url_path='reviews',
+            permission_classes=[permissions.IsAuthenticatedOrReadOnly])
+    def reviews(self, request, pk=None):
+        store = get_object_or_404(Store, pk=pk)
+
+        if request.method == 'GET':
+            reviews = store.reviews.all()
+            serializer = ReviewSerializer(reviews, many=True)
+            return Response(serializer.data)
+
+        elif request.method == 'POST':
+            serializer = ReviewSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(customer=request.user.account, store=store)
+                return Response(serializer.data, status=201)
+            return Response(serializer.errors, status=400)
+
+class ReviewDetailView(viewsets.ViewSet,generics.UpdateAPIView,generics.DestroyAPIView):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        review = get_object_or_404(Review, pk=self.kwargs['pk'])
+        if review.customer != self.request.user.account:
+            raise permissions.PermissionDenied("Bạn không có quyền sửa hoặc xoá review này.")
+        return review
+
+
+#==========Testing==========================================================
+class LogoutView(View):
+    def get(self,request):
+        logout(request)
+        return redirect('app:home')
+
+class HomeView(View):
+    template_name = 'login/home.html'
+    def get(self,request):
+        current_user = request.user
+        return render(request,self.template_name,{'current_user':current_user})
