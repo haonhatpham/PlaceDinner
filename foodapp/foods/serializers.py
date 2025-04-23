@@ -6,7 +6,7 @@ from .models import User, Account, Store, Food, Category, Notification,Review,Fo
 
 class AccountRegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', write_only=True)
-    password = serializers.CharField(source='user.password', write_only=True)
+    password = serializers.CharField(write_only=True)  # Không cần 'source' ở đây nữa
     email = serializers.EmailField(source='user.email')
     first_name = serializers.CharField(source='user.first_name', required=False)
     last_name = serializers.CharField(source='user.last_name', required=False)
@@ -55,7 +55,6 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
         # Tách thông tin user từ dữ liệu đã validate
         user_data = validated_data.pop('user')
         user_data['password'] = make_password(user_data['password'])  # Băm password
-
         # Tạo User
         user = User.objects.create(**user_data)
 
