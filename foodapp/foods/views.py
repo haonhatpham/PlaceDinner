@@ -168,6 +168,7 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView, generics.UpdateAPIView
     serializer_class = StoreSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    # xác nhận của người quản trị thì tài khoản mới
     @action(detail= True,methods=['patch'])
     def approve_store(self,request,pk=None):
         try:
@@ -179,6 +180,7 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView, generics.UpdateAPIView
         except Store.DoesNotExist:
             return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
 
+    # get all các is_active= false
     @action(detail=False, methods=['get'],url_path='is_approved')
     def get_stores(self, request, pk=None):
         try:

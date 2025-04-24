@@ -1,7 +1,7 @@
 # foods/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import User, Account, Store, Food, Category, Notification,Review,Follow
+from .models import User, Account, Store, Food, Category, Notification,Review,Follow,Order
 
 
 class AccountRegisterSerializer(serializers.ModelSerializer):
@@ -160,3 +160,8 @@ class StoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
         fields = '__all__'
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields='___all_'
