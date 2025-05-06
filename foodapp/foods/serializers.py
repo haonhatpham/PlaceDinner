@@ -1,8 +1,8 @@
 # foods/serializers.py
+# from django.contrib.gis.serializers.geojson import Serializer
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from .models import *
-
 
 class AccountRegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', write_only=True)
