@@ -18,4 +18,5 @@ urlpatterns = [
     # Home page sau khi đăng nhập
     path('home/', HomeView.as_view(), name='home'),
     # thống kê nằm ở đây
+    path("admin/stats/", admin_stats_view, name="admin-stats"),
 ]

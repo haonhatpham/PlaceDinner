@@ -1,4 +1,4 @@
-from rest_framework import viewsets, generics, permissions, status,parsers
+from rest_framework import viewsets, generics, permissions, status, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
@@ -6,13 +6,14 @@ from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import *
-from  .permissions import *
+from .permissions import *
 from django.core.mail import send_mail
 from rest_framework.generics import get_object_or_404, RetrieveAPIView
 from django.db.models import Q
 from django.views.generic import View
 from django.contrib.auth import logout
 from django.shortcuts import render, redirect
+
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = AccountRegisterSerializer
@@ -21,7 +22,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         try:
-            with transaction.atomic():#Đảm bảo xảy ra , không thì không lưu
+            with transaction.atomic():  # Đảm bảo xảy ra , không thì không lưu
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 account = serializer.save()
@@ -35,14 +36,15 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='current-user')
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='current_user')
     def current_user(self, request):
         account = request.user.account
         serializer = AccountRegisterSerializer(account)
         return Response(serializer.data)
 
-#Cho chức năng tìm kiếm món ăn của customer
-class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView,generics.CreateAPIView):
+
+# Cho chức năng tìm kiếm món ăn của customer
+class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView, generics.CreateAPIView):
     serializer_class = FoodSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['category', 'meal_time', 'is_available']
@@ -78,7 +80,8 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
         return [permissions.AllowAny()]
 
     # Cho review(comment + rating)
-    @action(detail=True, methods=['get', 'post'], url_path='reviews',permission_classes=[permissions.IsAuthenticatedOrReadOnly])
+    @action(detail=True, methods=['get', 'post'], url_path='reviews',
+            permission_classes=[permissions.IsAuthenticatedOrReadOnly])
     def reviews(self, request, pk=None):
         food = get_object_or_404(Food, pk=pk)
 
@@ -94,13 +97,31 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
 
-class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
+    @action(detail=True, methods=['patch'], url_path='toggle-availability',
+            permission_classes=[permissions.IsAuthenticated, IsStoreOwnerOrAdmin])
+    def toggle_availability(self, request, pk=None):
+        food = self.get_object()
+
+        # Kiểm tra quyền thuộc cửa hàng
+        if food.store.account != request.user.account:
+            return Response({"error": "Bạn không có quyền chỉnh sửa món này."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Đổi trạng thái
+        food.is_available = not food.is_available
+        food.save()
+
+        return Response({
+            "message": "Cập nhật trạng thái thành công.",
+            "is_available": food.is_available
+        }, status=status.HTTP_200_OK)
+
+class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Store.objects.filter(is_approved=True)
     serializer_class = StoreSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    @action(detail= True,methods=['patch'])
-    def approve_store(self,request,pk=None):
+    @action(detail=True, methods=['patch'])
+    def approve_store(self, request, pk=None):
         try:
             store = Store.objects.get(pk=pk)
             store.active = True
@@ -110,7 +131,7 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
         except Store.DoesNotExist:
             return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['get'],url_path='pending')
+    @action(detail=False, methods=['get'], url_path='pending')
     def pending(self, request, pk=None):
         # Danh sách cửa hàng chưa duyệt (admin)
         try:
@@ -157,7 +178,301 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
 
-class ReviewDetailView(viewsets.ViewSet,generics.UpdateAPIView,generics.DestroyAPIView):
+    @action(detail=True, methods=['get'], url_path='revenue/food/(?P<food_id>[^/.]+)/month')
+    def revenue_food_month(self, request, pk=None, food_id=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            year = int(request.query_params.get('year'))
+            month = int(request.query_params.get('month'))
+
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year,
+                created_date__month=month
+            )
+
+            total_revenue = 0
+            total_orders = 0
+
+            for order in orders:
+                items = order.items.filter(food_id=food_id)
+                if items.exists():
+                    total_orders += 1
+                    for item in items:
+                        total_revenue += item.quantity * item.price
+
+            return Response({
+                "store": store.name,
+                "food_id": food_id,
+                "month": month,
+                "year": year,
+                "total_orders": total_orders,
+                "revenue": total_revenue
+            })
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='revenue/food/(?P<food_id>[^/.]+)/year')
+    def revenue_food_year(self, request, pk=None, food_id=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            year = int(request.query_params.get('year'))
+
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year
+            )
+
+            total_revenue = 0
+            total_orders = 0
+
+            for order in orders:
+                items = order.items.filter(food_id=food_id)
+                if items.exists():
+                    total_orders += 1
+                    for item in items:
+                        total_revenue += item.quantity * item.price
+
+            return Response({
+                "store": store.name,
+                "food_id": food_id,
+                "year": year,
+                "total_orders": total_orders,
+                "total_revenue": total_revenue
+            })
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='revenue/food/(?P<food_id>[^/.]+)/quarter')
+    def revenue_food_quarter(self, request, pk=None, food_id=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            year = int(request.query_params.get('year'))
+            quarter = int(request.query_params.get('quarter'))
+
+            if quarter == 1:
+                start_month, end_month = 1, 3
+            elif quarter == 2:
+                start_month, end_month = 4, 6
+            elif quarter == 3:
+                start_month, end_month = 7, 9
+            elif quarter == 4:
+                start_month, end_month = 10, 12
+            else:
+                return Response({'error': 'Quý không hợp lệ'}, status=status.HTTP_400_BAD_REQUEST)
+
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year,
+                created_date__month__gte=start_month,
+                created_date__month__lte=end_month
+            )
+
+            total_revenue = 0
+            total_orders = 0
+
+            for order in orders:
+                items = order.items.filter(food_id=food_id)
+                if items.exists():
+                    total_orders += 1
+                    for item in items:
+                        total_revenue += item.quantity * item.price
+
+            return Response({
+                "store": store.name,
+                "food_id": food_id,
+                "year": year,
+                "quarter": quarter,
+                "total_orders": total_orders,
+                "revenue": total_revenue
+            })
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='revenue/month')
+    def revenue_month(self, request, pk=None):
+        try:
+            store = Store.objects.get(pk=pk)
+
+            year = int(request.query_params.get('year'))
+            month = int(request.query_params.get('month'))
+
+            # Lọc đơn hàng đã hoàn thành trong tháng và năm
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year,
+                created_date__month=month
+            )
+
+            # Tính tổng doanh thu
+            total_revenue = 0
+            for order in orders:
+                for item in order.items.all():
+                    total_revenue += item.quantity * item.price
+
+            # Trả về kết quả
+            return Response({
+                "store": store.name,
+                "month": month,
+                "year": year,
+                "total_orders": orders.count(),
+                "total_revenue": total_revenue
+            })
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='revenue/year')
+    def revenue_year(self, request, pk=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            year = int(request.query_params.get('year'))
+
+            # Lọc các đơn hàng đã hoàn thành trong năm
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year
+            )
+
+            total_orders = orders.count()
+            total_revenue = 0
+
+            for order in orders:
+                for item in order.items.all():
+                    total_revenue += item.quantity * item.price
+
+            return Response({
+                "store": store.name,
+                "year": year,
+                "total_orders": total_orders,
+                "total_revenue": total_revenue
+            })
+
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='revenue/quarter')
+    def revenue_quarter(self, request, pk=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            year = int(request.query_params.get('year'))
+            quarter = int(request.query_params.get('quarter'))
+
+            # Xác định tháng bắt đầu và kết thúc theo quý
+            if quarter == 1:
+                start_month, end_month = 1, 3
+            elif quarter == 2:
+                start_month, end_month = 4, 6
+            elif quarter == 3:
+                start_month, end_month = 7, 9
+            elif quarter == 4:
+                start_month, end_month = 10, 12
+            else:
+                return Response({'error': 'Quý không hợp lệ'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Lọc các đơn hàng đã hoàn thành trong quý
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year,
+                created_date__month__gte=start_month,
+                created_date__month__lte=end_month
+            )
+
+            total_orders = orders.count()
+            total_revenue = 0
+
+            for order in orders:
+                for item in order.items.all():
+                    total_revenue += item.quantity * item.price
+
+            return Response({
+                "store": store.name,
+                "year": year,
+                "quarter": quarter,
+                "total_orders": total_orders,
+                "total_revenue": total_revenue
+            })
+
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='revenue/category/(?P<category_id>[^/.]+)/year')
+    def revenue_category_year(self, request, pk=None, category_id=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            year = int(request.query_params.get('year'))
+
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year
+            )
+
+            total_revenue = 0
+            total_orders = 0
+
+            for order in orders:
+                items = order.items.filter(food__category_id=category_id)
+                order_total = sum(item.quantity * item.price for item in items)
+                if order_total > 0:
+                    total_orders += 1
+                    total_revenue += order_total
+
+            return Response({
+                "store": store.name,
+                "category_id": category_id,
+                "year": year,
+                "total_orders": total_orders,
+                "total_revenue": total_revenue
+            })
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='revenue/category/(?P<category_id>[^/.]+)/month')
+    def revenue_category_month(self, request, pk=None, category_id=None):
+        try:
+            store = Store.objects.get(pk=pk)
+            year = int(request.query_params.get('year'))
+            month = int(request.query_params.get('month'))
+
+            # Lấy tất cả các Order đã hoàn thành của cửa hàng trong tháng và năm
+            orders = Order.objects.filter(
+                store=store,
+                status=Order.Status.COMPLETED,
+                created_date__year=year,
+                created_date__month=month,
+                items__food__category_id=category_id  # liên kết qua OrderItem -> Food -> Category
+            ).distinct()
+
+            # Tính tổng số đơn
+            total_orders = orders.count()
+
+            # Tính tổng doanh thu từ các OrderItem thuộc category
+            total_revenue = 0
+            for order in orders:
+                for item in order.items.filter(food__category_id=category_id):
+                    total_revenue += item.quantity * item.price
+
+            return Response({
+                "store": store.name,
+                "category_id": category_id,
+                "year": year,
+                "month": month,
+                "total_orders": total_orders,
+                "total_revenue": total_revenue
+            })
+
+        except Store.DoesNotExist:
+            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class ReviewDetailView(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -167,6 +482,7 @@ class ReviewDetailView(viewsets.ViewSet,generics.UpdateAPIView,generics.DestroyA
         if review.customer != self.request.user.account:
             raise permissions.PermissionDenied("Bạn không có quyền sửa hoặc xoá review này.")
         return review
+
 
 class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = NotificationSerializer
@@ -186,14 +502,65 @@ class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
     def mark_all_as_read(self, request):
         Notification.objects.filter(account=request.user.account, is_read=False).update(is_read=True)
         return Response({'status': 'Đã đánh dấu tất cả là đã đọc'})
-#==========Testing==========================================================
+
+class OrderViewSet(viewsets.ModelViewSet,generics.UpdateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]  # hoặc IsStoreOwner nếu giới hạn cho store
+
+
+    @action(detail=True, methods=["patch"], url_path="confirm")
+    def update_status(self, request, pk=None):
+        order = self.get_object()
+
+        # Kiểm tra nếu trạng thái là PENDING, thì chuyển sang CONFIRMED
+        if order.status == Order.Status.PENDING:
+            order.status = Order.Status.CONFIRMED
+        else:
+            return Response({"error": "Chỉ có thể cập nhật từ trạng thái PENDING sang CONFIRMED."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        order.save()
+        return Response({"message": "Cập nhật trạng thái thành công.", "status": order.status})
+
+    @action(detail=True, methods=["patch"], url_path="deliver")
+    def deliver_order(self, request, pk=None):
+        order = self.get_object()
+        # if order.status != Order.Status.CONFIRMED:
+        #     return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
+        order.status = Order.Status.COMPLETED
+        order.save()
+        return Response({"message": "Đơn đã giao thành công."})
+
+from .dao import get_store_stats
+# Cho Admin Dashboard (Web)
+def admin_stats_view(request):
+    time_unit = request.GET.get("time_unit", "month")
+    store_id = request.GET.get("store_id")
+    stores = Store.objects.all()
+
+    stats = get_store_stats(store_id, time_unit) if store_id else {}
+
+    return render(request, "admin/stats.html", {
+        "stores": stores,
+        "selected_store": store_id,
+        "time_unit": time_unit,
+        "revenue_data": stats.get("revenue", []),
+        "product_data": stats.get("products", [])
+    })
+
+
+
+# ==========Testing==========================================================
 class LogoutView(View):
-    def get(self,request):
+    def get(self, request):
         logout(request)
         return redirect('app:home')
 
+
 class HomeView(View):
     template_name = 'login/home.html'
-    def get(self,request):
+
+    def get(self, request):
         current_user = request.user
-        return render(request,self.template_name,{'current_user':current_user})
+        return render(request, self.template_name, {'current_user': current_user})

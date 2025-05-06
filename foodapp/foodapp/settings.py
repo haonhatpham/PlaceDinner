@@ -27,8 +27,7 @@ SECRET_KEY = "django-insecure-$@%j3g5ade&)fzca0$2p(3g11y#^yn$xc@-0bm83@tkwb4swj6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.100.22']  # IP máy tính bạn
 
 # Application definition
 
@@ -165,8 +164,8 @@ CLIENT_SECRET = 'Npi0HuzajTtkWY3FVUcBzvhidmZFngPhXj7SV3aWFfEnJvrHFazAnaao2aFr2hU
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa nếu cần
 
 
-CLIENT_ID_H='QLhO1FlpPlfTw25OUnXLuRKzPeXs3foK2aDC4lqy'
-CLIENT_SECRET_H='UEKGKn4QHSLRHl7261JK6hNA5mFUa3Ii5j2Htf9iYoxn5xAyD0lRKtNB4aEThAhyMzHtbQfreXPiH3RL0rQtXDvaCvTU0947hM4gxahxAeVWWQdCbyNTFimvZ2H9F6fg'
+CLIENT_ID_H='D3rg3NGuv88kXRb0Z3ZZV6P91eCs7kjXbvkOK0vx'
+CLIENT_SECRET_H='LR0elzJxluQbflSJ8E46QgDFzPWBJs41kg5ZvV7aYxR6t7xEnuEpurRHup6ArxxDqcZxxtDp4eBUPbdKsbMwx5rpCMqRKiIfqnFAlZQPbCfIjUoyjlYQq1LQx8JtRKJy'
 
 # Cấu hình Redis làm broker cho Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/0'

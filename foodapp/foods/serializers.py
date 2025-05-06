@@ -1,12 +1,12 @@
 # foods/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import User, Account, Store, Food, Category, Notification,Review,Follow
+from .models import *
 
 
 class AccountRegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', write_only=True)
-    password = serializers.CharField(write_only=True)  # Không cần 'source' ở đây nữa
+    password = serializers.CharField(source='user.password', write_only=True)
     email = serializers.EmailField(source='user.email')
     first_name = serializers.CharField(source='user.first_name', required=False)
     last_name = serializers.CharField(source='user.last_name', required=False)
@@ -95,7 +95,6 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
                 'address': instance.store.address,
                 'description': instance.store.description,
                 'opening_hours': instance.store.opening_hours,
-                'is_active': instance.store.is_active,
                 'is_approved': instance.store.is_approved,
             }
 
@@ -159,3 +158,51 @@ class StoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
         fields = '__all__'
+
+class MenuSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Menu
+        fields= '__all__'
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ['id', 'order', 'amount', 'payment_method', 'status', 'transaction_id', 'payment_url', 'payment_date']
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ["food", "quantity"]
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)
+    payment = PaymentSerializer(read_only=True)
+    class Meta:
+        model = Order
+        fields = ["id", "store", "items", "status","delivery_address","payment"]
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        user = self.context['request'].user
+
+        account, created = Account.objects.get_or_create(user=user)
+
+        # try:
+        #     account = Account.objects.get(user=user)
+        # except Account.DoesNotExist:
+        #     raise serializers.ValidationError("Tài khoản không tồn tại cho người dùng hiện tại")
+        order = Order.objects.create(customer=account, **validated_data)
+
+        total_amount = 0
+        for item_data in items_data:
+            food = item_data['food']
+            quantity = item_data['quantity']
+            price = food.price  # <-- lấy giá từ Food model
+
+            OrderItem.objects.create(order=order, food=food, quantity=quantity, price=price)
+            total_amount += price * quantity
+
+        order.total_amount = total_amount + order.shipping_fee
+        order.save()
+
+        return order
