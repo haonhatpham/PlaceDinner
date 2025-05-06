@@ -49,9 +49,9 @@ class FoodAdmin(admin.ModelAdmin):
 
 # Order Admin
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['customer', 'store', 'status', 'payment_method', 'total_amount', 'delivery_address']
+    list_display = ['customer', 'store', 'status', 'total_amount', 'delivery_address']
     search_fields = ['customer__user__username', 'store__name', 'status']
-    list_filter = ['status', 'payment_method', 'store']
+    list_filter = ['status', 'store']
 
 # OrderItem Admin
 class OrderItemAdmin(admin.ModelAdmin):

@@ -2,7 +2,7 @@ from django.db.models.signals import post_save
 # Import signal post_save: được “phát ra” mỗi khi một instance của model được lưu (create hoặc update)
 from django.dispatch import receiver
 from .models import Food, Notification,Menu
-from .tasks import send_new_dish_notification
+from .tasks import send_new_dish_notification,send_new_menu_notification
 
 
 @receiver(post_save, sender=Food)
