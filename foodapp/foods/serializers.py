@@ -2,12 +2,11 @@
 # from django.contrib.gis.serializers.geojson import Serializer
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import User, Account, Store, Food, Category, Notification, Review, Follow, Menu, Order, OrderItem, Payment
-
+from .models import *
 
 class AccountRegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', write_only=True)
-    password = serializers.CharField(source='user.password', write_only=True)  # Không cần 'source' ở đây nữa
+    password = serializers.CharField(source='user.password', write_only=True)
     email = serializers.EmailField(source='user.email')
     first_name = serializers.CharField(source='user.first_name', required=False)
     last_name = serializers.CharField(source='user.last_name', required=False)
@@ -170,7 +169,6 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = ['id', 'order', 'amount', 'payment_method', 'status', 'transaction_id', 'payment_url', 'payment_date']
 
-
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
@@ -208,9 +206,3 @@ class OrderSerializer(serializers.ModelSerializer):
         order.save()
 
         return order
-
-
-
-
-
-

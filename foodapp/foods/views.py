@@ -1,4 +1,4 @@
-from rest_framework import viewsets, generics, permissions, status,parsers
+from rest_framework import viewsets, generics, permissions, status, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
@@ -6,7 +6,7 @@ from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import *
-from  .permissions import *
+from .permissions import *
 from django.core.mail import send_mail
 from rest_framework.generics import get_object_or_404, RetrieveAPIView, UpdateAPIView
 from django.db.models import Q
@@ -16,6 +16,7 @@ from django.shortcuts import render, redirect
 from django.db.models import Sum, F
 
 
+
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = AccountRegisterSerializer
     permission_classes = [permissions.AllowAny]
@@ -23,7 +24,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         try:
-            with transaction.atomic():#Đảm bảo xảy ra , không thì không lưu
+            with transaction.atomic():  # Đảm bảo xảy ra , không thì không lưu
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 account = serializer.save()
@@ -37,13 +38,12 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='current-user')
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='current_user')
     def current_user(self, request):
         account = request.user.account
         serializer = AccountRegisterSerializer(account)
         return Response(serializer.data)
 
-#Cho chức năng tìm kiếm món ăn của customer
 class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView,generics.CreateAPIView,generics.UpdateAPIView):
     serializer_class = FoodSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -80,7 +80,8 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
         return [permissions.AllowAny()]
 
     # Cho review(comment + rating)
-    @action(detail=True, methods=['get', 'post'], url_path='reviews',permission_classes=[permissions.IsAuthenticatedOrReadOnly])
+    @action(detail=True, methods=['get', 'post'], url_path='reviews',
+            permission_classes=[permissions.IsAuthenticatedOrReadOnly])
     def reviews(self, request, pk=None):
         food = get_object_or_404(Food, pk=pk)
 
@@ -119,8 +120,8 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
     serializer_class = StoreSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    @action(detail= True,methods=['patch'])
-    def approve_store(self,request,pk=None):
+    @action(detail=True, methods=['patch'])
+    def approve_store(self, request, pk=None):
         try:
             store = Store.objects.get(pk=pk)
             store.active = True
@@ -130,7 +131,7 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
         except Store.DoesNotExist:
             return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['get'],url_path='pending')
+    @action(detail=False, methods=['get'], url_path='pending')
     def pending(self, request, pk=None):
         # Danh sách cửa hàng chưa duyệt (admin)
         try:
@@ -470,7 +471,8 @@ class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
             return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-class ReviewDetailView(viewsets.ViewSet,generics.UpdateAPIView,generics.DestroyAPIView):
+          
+class ReviewDetailView(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -480,6 +482,7 @@ class ReviewDetailView(viewsets.ViewSet,generics.UpdateAPIView,generics.DestroyA
         if review.customer != self.request.user.account:
             raise permissions.PermissionDenied("Bạn không có quyền sửa hoặc xoá review này.")
         return review
+
 
 class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = NotificationSerializer
@@ -499,17 +502,68 @@ class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
     def mark_all_as_read(self, request):
         Notification.objects.filter(account=request.user.account, is_read=False).update(is_read=True)
         return Response({'status': 'Đã đánh dấu tất cả là đã đọc'})
-#==========Testing==========================================================
+
+class OrderViewSet(viewsets.ModelViewSet,generics.UpdateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]  # hoặc IsStoreOwner nếu giới hạn cho store
+
+
+    @action(detail=True, methods=["patch"], url_path="confirm")
+    def update_status(self, request, pk=None):
+        order = self.get_object()
+
+        # Kiểm tra nếu trạng thái là PENDING, thì chuyển sang CONFIRMED
+        if order.status == Order.Status.PENDING:
+            order.status = Order.Status.CONFIRMED
+        else:
+            return Response({"error": "Chỉ có thể cập nhật từ trạng thái PENDING sang CONFIRMED."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        order.save()
+        return Response({"message": "Cập nhật trạng thái thành công.", "status": order.status})
+
+    @action(detail=True, methods=["patch"], url_path="deliver")
+    def deliver_order(self, request, pk=None):
+        order = self.get_object()
+        # if order.status != Order.Status.CONFIRMED:
+        #     return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
+        order.status = Order.Status.COMPLETED
+        order.save()
+        return Response({"message": "Đơn đã giao thành công."})
+
+from .dao import get_store_stats
+# Cho Admin Dashboard (Web)
+def admin_stats_view(request):
+    time_unit = request.GET.get("time_unit", "month")
+    store_id = request.GET.get("store_id")
+    stores = Store.objects.all()
+
+    stats = get_store_stats(store_id, time_unit) if store_id else {}
+
+    return render(request, "admin/stats.html", {
+        "stores": stores,
+        "selected_store": store_id,
+        "time_unit": time_unit,
+        "revenue_data": stats.get("revenue", []),
+        "product_data": stats.get("products", [])
+    })
+
+
+
+# ==========Testing==========================================================
 class LogoutView(View):
-    def get(self,request):
+    def get(self, request):
         logout(request)
         return redirect('app:home')
 
+
 class HomeView(View):
     template_name = 'login/home.html'
-    def get(self,request):
+
+    def get(self, request):
         current_user = request.user
-        return render(request,self.template_name,{'current_user':current_user})
+        return render(request, self.template_name, {'current_user': current_user})
 
 class MenuViewSet(viewsets.ViewSet,generics.CreateAPIView):
     queryset = Menu.objects.all()

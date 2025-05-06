@@ -27,8 +27,7 @@ SECRET_KEY = "django-insecure-$@%j3g5ade&)fzca0$2p(3g11y#^yn$xc@-0bm83@tkwb4swj6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.100.22']  # IP máy tính bạn
 
 # Application definition
 
@@ -163,6 +162,7 @@ OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSO
 CLIENT_ID= 'jxXtCYDpt0TKiyZ7xwSVrWnoG7U8YavUgj7jxcyv'
 CLIENT_SECRET = 'Npi0HuzajTtkWY3FVUcBzvhidmZFngPhXj7SV3aWFfEnJvrHFazAnaao2aFr2hUmwsmUmnMwvCgqAWOI8wQoOfon52GImFPLUgm09rYQEVmico8LWIT0W5N8uoiuzZma'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa nếu cần
+
 
 
 CLIENT_ID_H='9tlx4eMbkTHpH7SJrJdgr2kmkn8UtcCTuQNx1yiX'

@@ -1,10 +1,70 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+<!-- templates/admin/stats.html -->
+{% extends "admin/base_site.html" %}
 
-</body>
-</html>
+{% block content %}
+<h1>Thống kê Doanh thu</h1>
+
+<form method="GET">
+    <select name="store_id">
+        <option value="">Tất cả cửa hàng</option>
+        {% for store in stores %}
+        <option value="{{ store.id }}" {% if store.id == selected_store|add:0 %}selected{% endif %}>
+            {{ store.name }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <select name="time_unit">
+        <option value="month" {% if time_unit == "month" %}selected{% endif %}>Theo Tháng</option>
+        <option value="quarter" {% if time_unit == "quarter" %}selected{% endif %}>Theo Quý</option>
+        <option value="year" {% if time_unit == "year" %}selected{% endif %}>Theo Năm</option>
+    </select>
+
+    <button type="submit">Xem</button>
+</form>
+
+<canvas id="revenueChart" width="800" height="400"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  // Tạo mảng labels và data từ revenue_data
+  const labels = [
+    {% for item in revenue_data %}
+        "{{ item.period|date:'Y-m' }}",
+    {% endfor %}
+  ];
+    const dataPoints = [
+    {% for item in revenue_data %}
+        {{ item.total_revenue|default:0 }},
+    {% endfor %}
+  ];
+
+  const data = {
+    labels: labels,
+    datasets: [{
+      label: 'Doanh thu',
+      data: dataPoints,
+      borderColor: '#4CAF50',
+      fill: false
+    }]
+  };
+  new Chart(ctx, {
+    type: 'line',
+    data: data,
+    options: {
+      responsive: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return value.toLocaleString('vi-VN') + '₫';
+            }
+          }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}
