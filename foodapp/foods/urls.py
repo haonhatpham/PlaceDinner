@@ -8,6 +8,8 @@ router.register('users', UserViewSet, basename='user')
 router.register('foods', FoodViewSet, basename='food')
 router.register('stores', StoreViewSet, basename='store')
 router.register('reviews', ReviewDetailView, basename='review')
+router.register('orders', OrderViewSet, basename='order')
+
 
 urlpatterns = [
     path('', include(router.urls)),  # Sử dụng router

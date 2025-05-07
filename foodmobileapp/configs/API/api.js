@@ -1,28 +1,7 @@
 import axios from 'axios';
 
 // Cấu hình base URL cho API
-const BASE_URL = 'http://192.168.100.22:8000/';
-
-const api = axios.create({
-    baseURL: BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
-
-// Thêm interceptor để xử lý token
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
+const BASE_URL = 'http://192.168.100.22:8000';
 
 // Định nghĩa các endpoint
 export const endpoints = {
@@ -32,20 +11,18 @@ export const endpoints = {
     'current-user': '/users/current-user/',
     'refresh-token': '/o/token/refresh/',
 
+
     // Restaurant Management
-    'restaurants': '/restaurants/',
-    'restaurant-detail': (id) => `/restaurants/${id}/`,
-    'restaurant-dishes': (restaurantId) => `/restaurants/${restaurantId}/dishes/`,
-    'restaurant-reviews': (restaurantId) => `/restaurants/${restaurantId}/reviews/`,
-    'restaurant-stats': (restaurantId) => `/restaurants/${restaurantId}/stats/`,
-    'restaurant-orders': (restaurantId) => `/restaurants/${restaurantId}/orders/`,
+    'stores_list': '/stores/',
+    'stores-dishes': (storeId) => `/stores/${storeId}/foods/`,
+    'stores-reviews': (storeId) => `/stores/${storeId}/reviews/`,
+
 
     // Dish Management
-    'dishes': '/dishes/',
-    'dish-detail': (id) => `/dishes/${id}/`,
-    'dish-categories': '/dish-categories/',
-    'dish-reviews': (dishId) => `/dishes/${dishId}/reviews/`,
-    'dish-ratings': (dishId) => `/dishes/${dishId}/ratings/`,
+    'foods_list': '/foods/',
+    'food-detail': (id) => `/foods/${id}/`,
+    'food-categories': '/food-categories/',
+    'dish-reviews': (foodId) => `/foods/${foodId}/reviews/`,
 
     // Order Management
     'orders': '/orders/',
@@ -90,4 +67,17 @@ export const endpoints = {
     'nearby-restaurants': '/restaurants/nearby/',
 };
 
-export default api;
+export const authApi = (token) => {
+    return axios.create({
+        baseURL: BASE_URL,
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+}
+
+export default axios.create({
+    baseURL:BASE_URL
+})
+
+

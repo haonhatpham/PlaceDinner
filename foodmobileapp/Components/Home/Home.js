@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import api, { endpoints } from '../../configs/API/config';
+import api, { endpoints } from '../../configs/API/api';
 
 const Home = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,7 +22,7 @@ const Home = ({ navigation }) => {
   // Hàm gọi API lấy danh sách cửa hàng nổi bật
   const fetchFeaturedRestaurants = async () => {
     try {
-      const response = await api.get(endpoints.restaurants);
+      const response = await api.get(endpoints.stores_list);
       setFeaturedRestaurants(response.data);
     } catch (err) {
       setError('Không thể tải danh sách cửa hàng');
@@ -33,7 +33,7 @@ const Home = ({ navigation }) => {
   // Hàm gọi API lấy danh sách món ăn đề xuất
   const fetchRecommendedDishes = async () => {
     try {
-      const response = await api.get(endpoints.dishes);
+      const response = await api.get(endpoints.foods_list);
       setRecommendedDishes(response.data);
     } catch (err) {
       setError('Không thể tải danh sách món ăn');

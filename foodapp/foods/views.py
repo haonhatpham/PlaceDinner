@@ -42,9 +42,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         serializer = AccountRegisterSerializer(account)
         return Response(serializer.data)
 
-
 # Cho chức năng tìm kiếm món ăn của customer
-class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView, generics.CreateAPIView):
+class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     serializer_class = FoodSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['category', 'meal_time', 'is_available']
@@ -97,28 +96,10 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
 
-    @action(detail=True, methods=['patch'], url_path='toggle-availability',
-            permission_classes=[permissions.IsAuthenticated, IsStoreOwnerOrAdmin])
-    def toggle_availability(self, request, pk=None):
-        food = self.get_object()
-
-        # Kiểm tra quyền thuộc cửa hàng
-        if food.store.account != request.user.account:
-            return Response({"error": "Bạn không có quyền chỉnh sửa món này."}, status=status.HTTP_403_FORBIDDEN)
-
-        # Đổi trạng thái
-        food.is_available = not food.is_available
-        food.save()
-
-        return Response({
-            "message": "Cập nhật trạng thái thành công.",
-            "is_available": food.is_available
-        }, status=status.HTTP_200_OK)
-
 class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Store.objects.filter(is_approved=True)
     serializer_class = StoreSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @action(detail=True, methods=['patch'])
     def approve_store(self, request, pk=None):
@@ -472,6 +453,108 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['get'], url_path='my-store', permission_classes=[permissions.IsAuthenticated])
+    def my_store(self, request):
+        # GET /stores/my-store/ → Lấy thông tin cửa hàng của user(là chủ cửa hàng)
+        store = request.user.store
+        serializer = self.get_serializer(store)
+        return Response(serializer.data)
+    # Chủ cửa hàng lấy danh sách món ăn và tạo món ăn mới
+    @action(detail=False, methods=['get', 'post'], url_path='my-store/foods',
+            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
+    def my_store_foods(self, request):
+        if request.method == 'GET':
+            foods = Food.objects.filter(store=request.user.store)
+            serializer = FoodSerializer(foods, many=True)
+            return Response(serializer.data)
+        # POST
+        serializer = FoodSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(store=request.user.store)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get', 'put', 'patch', 'delete'], url_path='my-store/foods/(?P<food_id>[^/.]+)',
+            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
+    def my_store_food_detail(self, request, food_id=None):
+        try:
+            food = Food.objects.get(pk=food_id, store=request.user.store)
+        except Food.DoesNotExist:
+            return Response({"detail": "Không tìm thấy món."}, status=status.HTTP_404_NOT_FOUND)
+        if request.method == 'GET':
+            serializer = FoodSerializer(food)
+            return Response(serializer.data)
+        if request.method in ('PUT', 'PATCH'):
+            serializer = FoodSerializer(food, data=request.data, partial=(request.method == 'PATCH'))
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # DELETE
+        food.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get', 'post'], url_path='my-store/menus',
+            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
+    def my_store_menus(self, request):
+        """GET /stores/my-store/menus/ & POST create menu for current user's store"""
+        if request.method == 'GET':
+            menus = Menu.objects.filter(store=request.user.store)
+            serializer = MenuSerializer(menus, many=True)
+            return Response(serializer.data)
+        serializer = MenuSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(store=request.user.store)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get', 'put', 'patch', 'delete'],
+            url_path='my-store/menus/(?P<menu_id>[^/.]+)',
+            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
+    def my_store_menu_detail(self, request, menu_id=None):
+        """Handle retrieve/update/delete a menu of current user's store"""
+        try:
+            menu = Menu.objects.get(pk=menu_id, store=request.user.store)
+        except Menu.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if request.method == 'GET':
+            return Response(MenuSerializer(menu).data)
+        if request.method in ('PUT', 'PATCH'):
+            serializer = MenuSerializer(menu, data=request.data, partial=(request.method == 'PATCH'))
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        menu.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["patch"], url_path="my-store/orders/(?P<order_id>[^/.]+)/confirm")
+    def confirm_order(self, request, order_id=None):
+        try:
+            order = Order.objects.get(pk=order_id, store=request.user.store)
+        except Order.DoesNotExist:
+            return Response({"error": "Không tìm thấy đơn hàng."}, status=404)
+
+        if order.status != Order.Status.PENDING:
+            return Response({"error": "Chỉ xác nhận đơn đang chờ."}, status=400)
+
+        order.status = Order.Status.CONFIRMED
+        order.save()
+        return Response({"message": "Đã xác nhận đơn hàng.", "status": order.status})
+
+    @action(detail=False, methods=["patch"], url_path="my-store/orders/(?P<order_id>[^/.]+)/deliver")
+    def deliver_order(self, request, order_id=None):
+        try:
+            order = Order.objects.get(pk=order_id, store=request.user.store)
+        except Order.DoesNotExist:
+            return Response({"error": "Không tìm thấy đơn hàng."}, status=404)
+
+        if order.status != Order.Status.CONFIRMED:
+            return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
+
+        order.status = Order.Status.COMPLETED
+        order.save()
+        return Response({"message": "Đã giao hàng thành công.", "status": order.status})
 class ReviewDetailView(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
@@ -503,34 +586,25 @@ class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
         Notification.objects.filter(account=request.user.account, is_read=False).update(is_read=True)
         return Response({'status': 'Đã đánh dấu tất cả là đã đọc'})
 
-class OrderViewSet(viewsets.ModelViewSet,generics.UpdateAPIView):
+
+
+class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
-    permission_classes = [permissions.IsAuthenticated]  # hoặc IsStoreOwner nếu giới hạn cho store
+    permission_classes = [permissions.IsAuthenticated]  #Cho khách hàng đặt món
 
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'store'):
+            # Store owner chỉ xem đơn thuộc về store của họ
+            return Order.objects.filter(store=user.store)
+        # Customer chỉ xem đơn của chính họ
+        return Order.objects.filter(customer=user)
 
-    @action(detail=True, methods=["patch"], url_path="confirm")
-    def update_status(self, request, pk=None):
-        order = self.get_object()
-
-        # Kiểm tra nếu trạng thái là PENDING, thì chuyển sang CONFIRMED
-        if order.status == Order.Status.PENDING:
-            order.status = Order.Status.CONFIRMED
-        else:
-            return Response({"error": "Chỉ có thể cập nhật từ trạng thái PENDING sang CONFIRMED."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        order.save()
-        return Response({"message": "Cập nhật trạng thái thành công.", "status": order.status})
-
-    @action(detail=True, methods=["patch"], url_path="deliver")
-    def deliver_order(self, request, pk=None):
-        order = self.get_object()
-        # if order.status != Order.Status.CONFIRMED:
-        #     return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
-        order.status = Order.Status.COMPLETED
-        order.save()
-        return Response({"message": "Đơn đã giao thành công."})
+    @action(detail=False, methods=['get'], url_path='my-orders')
+    def my_orders(self, request):
+        orders = Order.objects.filter(customer=request.user)
+        return Response(self.get_serializer(orders, many=True).data)
 
 from .dao import get_store_stats
 # Cho Admin Dashboard (Web)
