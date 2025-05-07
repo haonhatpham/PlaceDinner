@@ -8,11 +8,13 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import *
 from .permissions import *
 from django.core.mail import send_mail
-from rest_framework.generics import get_object_or_404, RetrieveAPIView
+from rest_framework.generics import get_object_or_404, RetrieveAPIView, UpdateAPIView
 from django.db.models import Q
 from django.views.generic import View
 from django.contrib.auth import logout
 from django.shortcuts import render, redirect
+from django.db.models import Sum, F
+
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -95,6 +97,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 serializer.save(customer=request.user.account, food=food)
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
+
 
 class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Store.objects.filter(is_approved=True)
@@ -453,6 +456,7 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
     @action(detail=False, methods=['get'], url_path='my-store', permission_classes=[permissions.IsAuthenticated])
     def my_store(self, request):
         # GET /stores/my-store/ → Lấy thông tin cửa hàng của user(là chủ cửa hàng)
@@ -638,3 +642,39 @@ class HomeView(View):
     def get(self, request):
         current_user = request.user
         return render(request, self.template_name, {'current_user': current_user})
+
+class MenuViewSet(viewsets.ViewSet,generics.CreateAPIView):
+    queryset = Menu.objects.all()
+    serializer_class = MenuSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+
+class OrderViewSet(viewsets.ModelViewSet,generics.UpdateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]  # hoặc IsStoreOwner nếu giới hạn cho store
+
+
+    @action(detail=True, methods=["patch"], url_path="confirm")
+    def update_status(self, request, pk=None):
+        order = self.get_object()
+
+        # Kiểm tra nếu trạng thái là PENDING, thì chuyển sang CONFIRMED
+        if order.status == Order.Status.PENDING:
+            order.status = Order.Status.CONFIRMED
+        else:
+            return Response({"error": "Chỉ có thể cập nhật từ trạng thái PENDING sang CONFIRMED."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        order.save()
+        return Response({"message": "Cập nhật trạng thái thành công.", "status": order.status})
+
+    @action(detail=True, methods=["patch"], url_path="deliver")
+    def deliver_order(self, request, pk=None):
+        order = self.get_object()
+        # if order.status != Order.Status.CONFIRMED:
+        #     return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
+        order.status = Order.Status.COMPLETED
+        order.save()
+        return Response({"message": "Đơn đã giao thành công."})
