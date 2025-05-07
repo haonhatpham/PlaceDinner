@@ -118,7 +118,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 class StoreViewSet(viewsets.ViewSet,generics.ListAPIView):
     queryset = Store.objects.filter(is_approved=True)
     serializer_class = StoreSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @action(detail=True, methods=['patch'])
     def approve_store(self, request, pk=None):
