@@ -12,6 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api, { endpoints } from '../../configs/API/api';
 
+const CLOUDINARY_BASE_URL = 'https://res.cloudinary.com/dtcxjo4ns/';
+
+export const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http')) return imagePath;
+  return `${CLOUDINARY_BASE_URL}${imagePath}`;
+};
+
 const Home = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [featuredRestaurants, setFeaturedRestaurants] = useState([]);
@@ -64,7 +72,7 @@ const Home = ({ navigation }) => {
   const handleSearch = () => {
     navigation.navigate('SearchResults', { 
       query: searchQuery,
-      endpoint: endpoints.search
+      endpoint: endpoints.foods_list
     });
   };
 
@@ -90,25 +98,28 @@ const Home = ({ navigation }) => {
   );
 
   // Component hiển thị món ăn
-  const DishCard = ({ dish }) => (
-    <TouchableOpacity 
-      style={styles.card}
-      onPress={() => navigation.navigate('DishDetail', { 
-        id: dish.id,
-        endpoint: endpoints['dish-detail'](dish.id)
-      })}
-    >
-      <Image 
-        source={{ uri: dish.image }} 
-        style={styles.cardImage}
-      />
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{dish.name}</Text>
-        <Text style={styles.cardPrice}>{dish.price.toLocaleString('vi-VN')}đ</Text>
-        <Text style={styles.cardRestaurant}>{dish.restaurant_name}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const DishCard = ({ dish }) => {
+    console.log('dish.image:', dish.image);
+    return (
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => navigation.navigate('DishDetail', { 
+          id: dish.id,
+          endpoint: endpoints['dish-detail'](dish.id)
+        })}
+      >
+        <Image 
+          source={{ uri: getImageUrl(dish.image) }} 
+          style={styles.cardImage}
+        />
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>{dish.name}</Text>
+          <Text style={styles.cardPrice}>{dish.price.toLocaleString('vi-VN')}đ</Text>
+          <Text style={styles.cardRestaurant}>{dish.restaurant_name}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (

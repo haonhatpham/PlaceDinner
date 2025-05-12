@@ -3,6 +3,13 @@ import axios from 'axios';
 // Cấu hình base URL cho API
 const BASE_URL = 'http://192.168.100.22:8000';
 
+// Hàm xử lý URL ảnh
+export const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${BASE_URL}${imagePath}`;
+};
+
 // Định nghĩa các endpoint
 export const endpoints = {
     // Authentication
@@ -11,12 +18,12 @@ export const endpoints = {
     'current-user': '/users/current-user/',
     'refresh-token': '/o/token/refresh/',
 
-
     // Restaurant Management
     'stores_list': '/stores/',
     'stores-dishes': (storeId) => `/stores/${storeId}/foods/`,
     'stores-reviews': (storeId) => `/stores/${storeId}/reviews/`,
-
+    'store-location': (storeId) => `/store-locations/${storeId}/`,
+    'nearby-stores': '/store-locations/nearby_stores/',
 
     // Dish Management
     'foods_list': '/foods/',
@@ -24,47 +31,21 @@ export const endpoints = {
     'food-categories': '/food-categories/',
     'dish-reviews': (foodId) => `/foods/${foodId}/reviews/`,
 
-    // Order Management
-    'orders': '/orders/',
-    'order-detail': (id) => `/orders/${id}/`,
-    'order-items': (orderId) => `/orders/${orderId}/items/`,
-    'order-status': (orderId) => `/orders/${orderId}/status/`,
-    'order-payment': (orderId) => `/orders/${orderId}/payment/`,
-
-    // User Management
-    'user-profile': '/users/profile/',
-    'user-orders': '/users/orders/',
-    'user-favorites': '/users/favorites/',
-    'user-following': '/users/following/',
-    'user-notifications': '/users/notifications/',
-
-    // Review & Rating
-    'reviews': '/reviews/',
-    'review-detail': (id) => `/reviews/${id}/`,
-    'ratings': '/ratings/',
-    'rating-detail': (id) => `/ratings/${id}/`,
-
-    // Search & Filter
-    'search': '/search/',
-    'search-restaurants': '/search/restaurants/',
-    'search-dishes': '/search/dishes/',
-    'filter-dishes': '/dishes/filter/',
-    'filter-restaurants': '/restaurants/filter/',
-
     // Payment
-    'payment-methods': '/payment/methods/',
-    'payment-process': '/payment/process/',
-    'payment-status': (orderId) => `/payment/${orderId}/status/`,
+    'create-payment': (orderId) => `/payments/${orderId}/create_payment/`,
+    'confirm-payment': (orderId) => `/payments/${orderId}/confirm_payment/`,
+    'delivery-fee': (storeId) => `/delivery-fees/${storeId}/calculate_fee/`,
 
-    // Notification
+    // Orders
+    'orders': '/orders/',
+    'my-orders': '/orders/my-orders/',
+    'confirm-order': (orderId) => `/stores/my-store/orders/${orderId}/confirm/`,
+    'deliver-order': (orderId) => `/stores/my-store/orders/${orderId}/deliver/`,
+
+    // Notifications
     'notifications': '/notifications/',
-    'notification-settings': '/notifications/settings/',
-    'notification-mark-read': (id) => `/notifications/${id}/mark-read/`,
-
-    // Map & Location
-    'locations': '/locations/',
-    'location-detail': (id) => `/locations/${id}/`,
-    'nearby-restaurants': '/restaurants/nearby/',
+    'mark-notification-read': (id) => `/notifications/${id}/mark_as_read/`,
+    'mark-all-notifications-read': '/notifications/mark_all_as_read/',
 };
 
 export const authApi = (token) => {
@@ -77,7 +58,7 @@ export const authApi = (token) => {
 }
 
 export default axios.create({
-    baseURL:BASE_URL
+    baseURL: BASE_URL
 })
 
 
