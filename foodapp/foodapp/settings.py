@@ -105,7 +105,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'hieu',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -164,8 +164,9 @@ CLIENT_SECRET = 'Npi0HuzajTtkWY3FVUcBzvhidmZFngPhXj7SV3aWFfEnJvrHFazAnaao2aFr2hU
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa nếu cần
 
 
-CLIENT_ID_H='D3rg3NGuv88kXRb0Z3ZZV6P91eCs7kjXbvkOK0vx'
-CLIENT_SECRET_H='LR0elzJxluQbflSJ8E46QgDFzPWBJs41kg5ZvV7aYxR6t7xEnuEpurRHup6ArxxDqcZxxtDp4eBUPbdKsbMwx5rpCMqRKiIfqnFAlZQPbCfIjUoyjlYQq1LQx8JtRKJy'
+
+CLIENT_ID_H='9tlx4eMbkTHpH7SJrJdgr2kmkn8UtcCTuQNx1yiX'
+CLIENT_SECRET_H='Pq2u9U7URcJd27LTMU5bCJ12mDk7HjZ0ztxYU2sSVGxGn8J68nOQwAjXyHsinNdqTuULlfvN3XCeoCDkgGeDLBeCWtrBX0vwHDL442HkfdfVUr6e80EsZUIqhGtWJa6R'
 
 # Cấu hình Redis làm broker cho Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
