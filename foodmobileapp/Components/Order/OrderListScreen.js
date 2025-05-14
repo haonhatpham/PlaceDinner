@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApi, endpoints } from '../../configs/API/api';
+import { authApi, endpoints } from '../../configs/Apis';
 
 const OrderListScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);

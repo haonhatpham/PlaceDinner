@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { authApi } from '../../configs/API/api';
+import { authApi } from '../../configs/Apis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OrderScreen = ({ route, navigation }) => {

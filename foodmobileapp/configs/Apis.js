@@ -1,23 +1,19 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://192.168.1.7:8000/';
+// Cấu hình base URL cho API
+export const BASE_URL = 'http://192.168.100.22:8000';
 
-export const Apis = axios.create({
-    baseURL: BASE_URL
-});
-
-export const authApis = (token) => {
-    return axios.create({
-        baseURL: BASE_URL,
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
+// Hàm xử lý URL ảnh
+export const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${BASE_URL}${imagePath}`;
 };
 
+// Định nghĩa các endpoint
 export const endpoints = {
     'login': '/o/token/',
-    'current-user': '/users/current-user/',
+    'current-user': '/users/current_user/',
     'register': '/users/',
     'stores': '/stores/',
     'foods': '/foods/',
@@ -43,3 +39,18 @@ export const endpoints = {
     'store-orders-revenue': (id) => `/stores/${id}/orders/revenue/`,
     'store-revenue-revenue': (id) => `/stores/${id}/revenue/revenue/`,
 }; 
+
+export const authApi = (token) => {
+    return axios.create({
+        baseURL: BASE_URL,
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+}
+
+export default axios.create({
+    baseURL: BASE_URL
+})
+
+
