@@ -1,0 +1,116 @@
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native"
+import MyStyles from "../../styles/MyStyles"
+import { Button, HelperText, TextInput } from "react-native-paper";
+import * as ImagePicker from 'expo-image-picker';
+import { useContext, useState } from "react";
+import api, { authApi, endpoints } from "../../configs/Apis";
+import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MyDispatchContext } from "../../configs/Contexts";
+
+const Login = () => {
+    const info = [{
+        label: 'Tên đăng nhập',
+        field: 'username',
+        icon: 'account',
+        secureTextEntry: false
+    }, {
+        label: 'Mật khẩu',
+        field: 'password',
+        icon: 'eye',
+        secureTextEntry: true
+    }];
+
+    const [user, setUser] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [msg, setMsg] = useState();
+    const nav = useNavigation();
+    const dispatch = useContext(MyDispatchContext);
+
+    const setState = (value, field) => {
+        setUser({...user, [field]: value})
+    }
+
+    const validate = () => {
+        if (Object.values(user).length == 0) {
+            setMsg("Vui lòng nhập thông tin!");
+            return false;
+        }
+
+        for (let i of info)
+            if (user[i.field] === '') {
+                setMsg(`Vui lòng nhập ${i.label}!`);
+                return false;
+            }
+
+        setMsg('');
+        return true;
+    }
+
+    const login = async () => {
+        if (validate() === true) {
+            try {
+                setLoading(true);
+                setMsg('');
+                
+                // Gọi API đăng nhập
+                const res = await api.post(endpoints['login'], {
+                    username: user.username,
+                    password: user.password,
+                    client_id: '0Q3Fjoa8QMDd6rzURnzPTupuTUvNhstdh0b65HXX',
+                    client_secret: '84JR4qZDi93m7XdaCuA4W6HBPIxa2zap57i28BULn0sX9uAVKBZ1Lv9B9WrlvRu3qeOYEkKjYfzkbJ1vMgHVBf6jXppj2lYpoFsnNiWRiSkJnwAHDGR0WJNLGroJSTgi',
+                    grant_type: 'password'
+                });
+                
+                console.log(res.data);  // In ra dữ liệu trả về từ API
+                // Lưu token
+                await AsyncStorage.setItem('token', res.data.access_token);
+                if (res.data.refresh_token) {
+                    await AsyncStorage.setItem('refresh_token', res.data.refresh_token);
+                }
+
+                // Lấy thông tin user
+                const userRes = await authApi(res.data.access_token).get(endpoints['current-user']);
+                
+                // Cập nhật state và chuyển hướng
+                dispatch({
+                    "type": "login",
+                    "payload": userRes.data
+                });
+                
+                nav.replace('Trang chủ');
+            } catch (ex) {
+                console.error(ex);
+                if (ex.response) {
+                    if (ex.response.status === 401) {
+                        setMsg('Tên đăng nhập hoặc mật khẩu không đúng!');
+                    } else if (ex.response.data) {
+                        setMsg(ex.response.data.detail || 'Đăng nhập thất bại!');
+                    }
+                } else {
+                    setMsg('Không thể kết nối đến máy chủ!');
+                }
+            } finally {
+                setLoading(false);
+            }
+        }
+    }
+
+    return (
+        <ScrollView>
+            <HelperText type="error" visible={msg}>
+                {msg}
+            </HelperText>
+            
+            {info.map(i =>  <TextInput key={i.field} style={MyStyles.m}
+                                label={i.label}
+                                secureTextEntry={i.secureTextEntry}
+                                right={<TextInput.Icon icon={i.icon} />}
+                                value={user[i.field]} onChangeText={t => setState(t, i.field)} />)}
+
+            <Button onPress={login} disabled={loading} loading={loading} style={MyStyles.m} mode="contained">Đăng nhập</Button>
+        </ScrollView>
+    )
+}
+
+export default Login;

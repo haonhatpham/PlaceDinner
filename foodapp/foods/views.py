@@ -20,6 +20,8 @@ from django.db.models import Sum, F
 from .momo import create_momo_payment
 from django.utils import timezone
 import logging
+from foods import paginators
+
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = AccountRegisterSerializer
@@ -56,6 +58,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
     search_fields = ['name', 'description']
     ordering_fields = ['price', 'created_date']
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]  # Mặc định
+    pagination_class = paginators.ItemPaginator
 
     # Cho tìm kiếm
     def get_queryset(self):
