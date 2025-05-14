@@ -14,7 +14,7 @@ from django.views.generic import View
 from django.contrib.auth import logout
 from django.shortcuts import render, redirect
 from django.db.models import Sum, F
-
+from foods import paginators
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -52,6 +52,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
     search_fields = ['name', 'description']
     ordering_fields = ['price', 'created_date']
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]  # Mặc định
+    pagination_class = paginators.ItemPaginator
 
     # Cho tìm kiếm
     def get_queryset(self):

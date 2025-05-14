@@ -10,15 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import api, { endpoints } from '../../configs/API/api';
-
-const CLOUDINARY_BASE_URL = 'https://res.cloudinary.com/dtcxjo4ns/';
-
-export const getImageUrl = (imagePath) => {
-  if (!imagePath) return null;
-  if (imagePath.startsWith('http')) return imagePath;
-  return `${CLOUDINARY_BASE_URL}${imagePath}`;
-};
+import api, { endpoints } from '../../configs/Apis';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const Home = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,22 +23,45 @@ const Home = ({ navigation }) => {
   // Hàm gọi API lấy danh sách cửa hàng nổi bật
   const fetchFeaturedRestaurants = async () => {
     try {
-      const response = await api.get(endpoints.stores_list);
-      setFeaturedRestaurants(response.data);
+      const response = await api.get(endpoints.stores);
+      
+      if (response.data && Array.isArray(response.data)) {
+        const restaurants = response.data.map(store => ({
+          id: store.id,
+          name: store.name,
+          image: store.image || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png', // Ảnh mặc định nếu không có
+          cuisine: store.description || 'Không xác định',
+          rating: 'Chưa có đánh giá',
+          address: store.address,
+          opening_hours: store.opening_hours
+        }));
+        setFeaturedRestaurants(restaurants);
+      } else {
+        console.log('Invalid restaurant data structure:', response.data);
+        setFeaturedRestaurants([]);
+        setError('Dữ liệu cửa hàng không hợp lệ');
+      }
     } catch (err) {
+      console.error('Restaurant API Error:', err.response?.data || err.message);
       setError('Không thể tải danh sách cửa hàng');
-      console.error(err);
+      setFeaturedRestaurants([]);
     }
   };
 
   // Hàm gọi API lấy danh sách món ăn đề xuất
   const fetchRecommendedDishes = async () => {
     try {
-      const response = await api.get(endpoints.foods_list);
-      setRecommendedDishes(response.data);
+      const response = await api.get(endpoints.foods);
+      if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        setRecommendedDishes(response.data.results);
+      } else {
+        setRecommendedDishes([]);
+        setError('Dữ liệu món ăn không hợp lệ');
+      }
     } catch (err) {
+      console.error('Food API Error:', err.response?.data || err.message);
       setError('Không thể tải danh sách món ăn');
-      console.error(err);
+      setRecommendedDishes([]);
     }
   };
 
@@ -70,9 +86,9 @@ const Home = ({ navigation }) => {
 
   // Hàm tìm kiếm
   const handleSearch = () => {
-    navigation.navigate('SearchResults', { 
+    navigation.navigate('Search', { 
       query: searchQuery,
-      endpoint: endpoints.foods_list
+      endpoint: endpoints.foods
     });
   };
 
@@ -99,7 +115,6 @@ const Home = ({ navigation }) => {
 
   // Component hiển thị món ăn
   const DishCard = ({ dish }) => {
-    console.log('dish.image:', dish.image);
     return (
       <TouchableOpacity 
         style={styles.card}
@@ -109,7 +124,7 @@ const Home = ({ navigation }) => {
         })}
       >
         <Image 
-          source={{ uri: getImageUrl(dish.image) }} 
+          source={{ uri: dish.image }} 
           style={styles.cardImage}
         />
         <View style={styles.cardContent}>
@@ -141,13 +156,13 @@ const Home = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* Header với thanh tìm kiếm */}
       <View style={styles.header}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Tìm kiếm món ăn, nhà hàng..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearch}
-        />
+        <TouchableOpacity 
+          style={styles.searchBar}
+          onPress={() => navigation.navigate('Search')}
+        >
+          <Icon name="search" size={24} color="#666" />
+          <Text style={styles.searchPlaceholder}>Tìm kiếm món ăn, nhà hàng...</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView>
@@ -155,9 +170,13 @@ const Home = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cửa hàng nổi bật</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {featuredRestaurants.map(restaurant => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
-            ))}
+            {featuredRestaurants && featuredRestaurants.length > 0 ? (
+              featuredRestaurants.map(restaurant => (
+                <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Không có cửa hàng nào</Text>
+            )}
           </ScrollView>
         </View>
 
@@ -165,9 +184,13 @@ const Home = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Món ăn đề xuất</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {recommendedDishes.map(dish => (
-              <DishCard key={dish.id} dish={dish} />
-            ))}
+            {recommendedDishes && recommendedDishes.length > 0 ? (
+              recommendedDishes.map(dish => (
+                <DishCard key={dish.id} dish={dish} />
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Không có món ăn nào</Text>
+            )}
           </ScrollView>
         </View>
       </ScrollView>
@@ -186,11 +209,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  searchInput: {
-    height: 40,
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f5f5f5',
     borderRadius: 20,
     paddingHorizontal: 15,
+    height: 40,
+  },
+  searchPlaceholder: {
+    marginLeft: 8,
+    color: '#666',
+    fontSize: 16,
   },
   section: {
     padding: 15,
@@ -261,6 +291,12 @@ const styles = StyleSheet.create({
   errorText: {
     color: 'red',
     textAlign: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+    fontStyle: 'italic'
   },
 });
 

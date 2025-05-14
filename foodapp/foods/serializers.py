@@ -117,6 +117,12 @@ class FoodSerializer(serializers.ModelSerializer):
         # Hiển thị thông tin category và meal_time dạng text thay vì value
         data['category'] = CategorySerializer(instance.category).data if instance.category else None
         data['meal_time'] = instance.get_meal_time_display()
+
+
+        if instance.image:
+            data['image'] = instance.image.url if hasattr(instance.image, 'url') else str(instance.image)
+        else:
+            data['image'] = ''  # Hoặc URL ảnh mặc định
         return data
 
 

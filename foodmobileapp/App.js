@@ -10,6 +10,7 @@ import NotificationScreen from "./Components/Notification/NotificationScreen";
 import Login from "./Components/User/Login";
 import Register from "./Components/User/Register";
 import Profile from "./Components/User/Profile";
+import SearchScreen from "./Components/Search/SearchScreen";
 import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
 
@@ -20,6 +21,7 @@ const HomeStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="Home" component={Home} options={{ title: "Trang chủ" }} />
     <Stack.Screen name="Order" component={OrderScreen} options={{ title: "Chi tiết đơn hàng" }} />
+    <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Tìm kiếm món ăn" }} />
   </Stack.Navigator>
 );
 
