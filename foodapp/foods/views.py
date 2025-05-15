@@ -1,5 +1,8 @@
+import uuid
+
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, generics, permissions, status, parsers
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.db import transaction
 from .serializers import *
@@ -14,6 +17,9 @@ from django.views.generic import View
 from django.contrib.auth import logout
 from django.shortcuts import render, redirect
 from django.db.models import Sum, F
+from .momo import create_momo_payment
+from django.utils import timezone
+import logging
 from foods import paginators
 
 
@@ -611,6 +617,29 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView):
         orders = Order.objects.filter(customer=request.user)
         return Response(self.get_serializer(orders, many=True).data)
 
+    @action(detail=True, methods=["patch"], url_path="confirm")
+    def update_status(self, request, pk=None):
+        order = self.get_object()
+
+        # Kiểm tra nếu trạng thái là PENDING, thì chuyển sang CONFIRMED
+        if order.status == Order.Status.PENDING:
+            order.status = Order.Status.CONFIRMED
+        else:
+            return Response({"error": "Chỉ có thể cập nhật từ trạng thái PENDING sang CONFIRMED."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        order.save()
+        return Response({"message": "Cập nhật trạng thái thành công.", "status": order.status})
+
+    @action(detail=True, methods=["patch"], url_path="deliver")
+    def deliver_order(self, request, pk=None):
+        order = self.get_object()
+        # if order.status != Order.Status.CONFIRMED:
+        #     return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
+        order.status = Order.Status.COMPLETED
+        order.save()
+        return Response({"message": "Đơn đã giao thành công."})
+
 from .dao import get_store_stats
 # Cho Admin Dashboard (Web)
 def admin_stats_view(request):
@@ -650,39 +679,85 @@ class MenuViewSet(viewsets.ViewSet,generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
 
+logger = logging.getLogger(__name__)
 
-class OrderViewSet(viewsets.ModelViewSet,generics.UpdateAPIView):
-    queryset = Order.objects.all()
-    serializer_class = OrderSerializer
-    permission_classes = [permissions.IsAuthenticated]  # hoặc IsStoreOwner nếu giới hạn cho store
-    filterset_fields = ['status', 'payment_method']
-    search_fields = ['customer__user__username', 'store__name']
+class PaymentViewSet(viewsets.ModelViewSet):
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
 
-    def get_queryset(self):
-        user = self.request.user
-        if hasattr(user, 'store'):
-            return self.queryset.filter(store=user.store)
-        return self.queryset.filter(customer__user=user)
+    @action(detail=False, methods=['post'], url_path='momo')
+    def create_momo_payment_view(self, request):
+        order_id = request.data.get("order_id")
 
-    @action(detail=True, methods=["patch"], url_path="confirm")
-    def update_status(self, request, pk=None):
-        order = self.get_object()
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Kiểm tra nếu trạng thái là PENDING, thì chuyển sang CONFIRMED
-        if order.status == Order.Status.PENDING:
-            order.status = Order.Status.CONFIRMED
-        else:
-            return Response({"error": "Chỉ có thể cập nhật từ trạng thái PENDING sang CONFIRMED."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        # Use the order's actual total amount to prevent tampering
+        amount = int(order.total_amount)
 
-        order.save()
-        return Response({"message": "Cập nhật trạng thái thành công.", "status": order.status})
+        # Check if payment already exists for this order
+        existing_payment = Payment.objects.filter(order=order).first()
+        if existing_payment and existing_payment.status == Payment.Status.COMPLETED:
+            return Response({
+                "error": "Order has already been paid",
+                "payment_id": existing_payment.id,
+                "status": existing_payment.status
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=["patch"], url_path="deliver")
-    def deliver_order(self, request, pk=None):
-        order = self.get_object()
-        # if order.status != Order.Status.CONFIRMED:
-        #     return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
-        order.status = Order.Status.COMPLETED
-        order.save()
-        return Response({"message": "Đơn đã giao thành công."})
+        # Generate a unique request ID for MoMo
+        momo_request_id = str(uuid.uuid4())
+        momo_order_id = f"ORDER_{order.id}_{momo_request_id[:8]}"
+
+        try:
+            # Call MoMo API
+            momo_response = create_momo_payment(
+                amount=amount,
+                order_info=f"Thanh toán đơn hàng #{order.id}",
+                redirect_url="https://yourdomain.com/thank-you",
+                ipn_url="https://yourdomain.com/api/payments/momo/webhook",
+                momo_request_id=momo_request_id,
+                momo_order_id=momo_order_id
+            )
+
+            # Check if MoMo response is valid
+            if 'payUrl' not in momo_response:
+                logger.error(f"Invalid MoMo response: {momo_response}")
+                return Response({
+                    "error": "Failed to create payment with MoMo",
+                    "details": momo_response.get('message', 'Unknown error')
+                }, status=status.HTTP_502_BAD_GATEWAY)
+
+            # Create or update the Payment record
+            if existing_payment:
+                existing_payment.payment_method = Payment.PaymentMethod.MOMO
+                existing_payment.status = Payment.Status.PENDING
+                existing_payment.transaction_id = momo_order_id  # Store MoMo's order ID
+                existing_payment.payment_url = momo_response.get('payUrl')
+                existing_payment.save()
+                payment = existing_payment
+            else:
+                payment = Payment.objects.create(
+                    order=order,
+                    amount=amount,
+                    payment_method=Payment.PaymentMethod.MOMO,
+                    status=Payment.Status.PENDING,
+                    transaction_id=momo_order_id,  # Đây là orderId MoMo sẽ gửi lại
+                    payment_url=momo_response.get('payUrl')
+                )
+
+            return Response({
+                "payUrl": momo_response.get('payUrl'),
+                "payment_id": payment.id,
+                "status": payment.get_status_display()
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception(f"Error creating MoMo payment: {str(e)}")
+            return Response({
+                "error": "Failed to process payment",
+                "details": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
