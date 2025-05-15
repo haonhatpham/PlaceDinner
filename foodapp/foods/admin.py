@@ -49,7 +49,7 @@ class FoodAdmin(admin.ModelAdmin):
 
 # Order Admin
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['customer', 'store', 'status', 'total_amount', 'delivery_address']
+    list_display = ['customer', 'store', 'status', 'delivery_address']
     search_fields = ['customer__user__username', 'store__name', 'status']
     list_filter = ['status', 'store']
 

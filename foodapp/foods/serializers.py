@@ -3,6 +3,8 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from .models import *
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 
 class AccountRegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', write_only=True)
@@ -161,55 +163,100 @@ class FollowSerializer(serializers.ModelSerializer):
         read_only_fields = ('customer',)
 
 class StoreSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()  # Thêm dòng này
+
     class Meta:
         model = Store
         fields = '__all__'
+
+    def get_avatar(self, obj):
+        return obj.account.avatar.url if obj.account and obj.account.avatar else None
 
 class MenuSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu
         fields= '__all__'
 
+
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = ['id', 'order', 'amount', 'payment_method', 'status', 'transaction_id', 'payment_url', 'payment_date']
+        fields = ['id', 'amount', 'status', 'transaction_id', 'payment_url', 'payment_date']
+        read_only_fields = fields
+
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    food_name = serializers.CharField(source='food.name', read_only=True)
+
     class Meta:
         model = OrderItem
-        fields = ["food", "quantity"]
+        fields = ['id', 'food', 'food_name', 'quantity', 'price', 'note']
+        extra_kwargs = {
+            'food': {'write_only': True},
+            'price': {'read_only': True}
+        }
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)
     payment = PaymentSerializer(read_only=True)
+    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    customer_name = serializers.CharField(source='customer.user.get_full_name', read_only=True)
+    store_name = serializers.CharField(source='store.name', read_only=True)
+
     class Meta:
         model = Order
-        fields = ["id", "store", "items", "status","delivery_address","payment"]
+        fields = [
+            'id', 'store', 'store_name', 'customer_name', 'items', 'status',
+            'delivery_address', 'payment', 'note', 'payment_method',
+            'shipping_fee', 'total_amount'
+        ]
+        read_only_fields = ['status', 'created_at', 'total_amount']
 
+    def validate(self, data):
+        store = data.get('store')
+        items = data.get('items', [])
+
+        for item in items:
+            food = item['food']
+            # Nếu chỉ là ID thì lấy object Food
+            if isinstance(food, int):
+                food = get_object_or_404(Food, pk=food)
+                item['food'] = food  # Gán lại để dùng sau này
+
+            if food.store != store:
+                raise serializers.ValidationError(
+                    f"Món ăn {food.id} không thuộc cửa hàng này"
+                )
+        return data
+
+    @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         user = self.context['request'].user
 
         account, created = Account.objects.get_or_create(user=user)
-
-        # try:
-        #     account = Account.objects.get(user=user)
-        # except Account.DoesNotExist:
-        #     raise serializers.ValidationError("Tài khoản không tồn tại cho người dùng hiện tại")
         order = Order.objects.create(customer=account, **validated_data)
 
-        total_amount = 0
+        # Thêm các món ăn
         for item_data in items_data:
-            food = item_data['food']
-            quantity = item_data['quantity']
-            price = food.price  # <-- lấy giá từ Food model
+            OrderItem.objects.create(
+                order=order,
+                food=item_data['food'],
+                quantity=item_data['quantity'],
+                price=item_data['food'].price,
+                note=item_data.get('note')
+            )
 
-            OrderItem.objects.create(order=order, food=food, quantity=quantity, price=price)
-            total_amount += price * quantity
-
-        order.total_amount = total_amount + order.shipping_fee
-        order.save()
+        # Tạo payment
+        Payment.objects.create(
+            order=order,
+            amount=order.total_amount,
+            status=(
+                Payment.Status.COMPLETED
+                if order.payment_method == Order.PaymentMethod.CASH
+                else Payment.Status.PENDING
+            )
+        )
 
         return order
 

@@ -117,27 +117,36 @@ class Order(BaseModel):
         DELIVERING = 'DELIVERING', 'Đang giao'
         COMPLETED = 'COMPLETED', 'Hoàn thành'
         CANCELLED = 'CANCELLED', 'Đã hủy'
-
-
+    class PaymentMethod(models.TextChoices):
+        CASH = 'CASH', 'Tiền mặt'
+        MOMO = 'MOMO', 'Momo'
+        PAYPAL = 'PAYPAL', 'PayPal'
+        STRIPE = 'STRIPE', 'Stripe'
+        ZALOPAY = 'ZALOPAY', 'ZaloPay'
 
     customer = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='orders')
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='orders')
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices,default=PaymentMethod.CASH)
     delivery_address = models.CharField(max_length=255)
     note = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer}"
 
+    @property
+    def total_amount(self):
+        items_total = sum(item.price * item.quantity for item in self.items.all())
+        return items_total + self.shipping_fee
+
 
 class OrderItem(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    food = models.ForeignKey(Food, on_delete=models.CASCADE)
+    food = models.ForeignKey('Food', on_delete=models.PROTECT)  # PROTECT để tránh xóa nhầm món ăn đã có đơn
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    note = models.CharField(max_length=255, blank=True, null=True)  # Ghi chú riêng cho món
 
     def __str__(self):
         return f"{self.quantity}x {self.food.name}"
@@ -150,16 +159,8 @@ class Payment(BaseModel):
         FAILED = 'FAILED', 'Thanh toán thất bại'
         REFUNDED = 'REFUNDED', 'Đã hoàn tiền'
 
-    class PaymentMethod(models.TextChoices):
-        CASH = 'CASH', 'Tiền mặt'
-        MOMO = 'MOMO', 'Momo'
-        PAYPAL = 'PAYPAL', 'PayPal'
-        STRIPE = 'STRIPE', 'Stripe'
-        ZALOPAY = 'ZALOPAY', 'ZaloPay'
-
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     transaction_id = models.CharField(max_length=255, blank=True, null=True)
     payment_url = models.CharField(max_length=255, blank=True, null=True)
