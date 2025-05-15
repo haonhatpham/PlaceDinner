@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Cấu hình base URL cho API
-export const BASE_URL = 'http://192.168.100.22:8000';
+export const BASE_URL = 'http://192.168.100.86:8000';
 
 // Hàm xử lý URL ảnh
 export const getImageUrl = (imagePath) => {

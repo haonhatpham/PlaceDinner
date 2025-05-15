@@ -105,7 +105,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'hieu',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -159,8 +159,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
 
-CLIENT_ID= '0Q3Fjoa8QMDd6rzURnzPTupuTUvNhstdh0b65HXX'
-CLIENT_SECRET = '84JR4qZDi93m7XdaCuA4W6HBPIxa2zap57i28BULn0sX9uAVKBZ1Lv9B9WrlvRu3qeOYEkKjYfzkbJ1vMgHVBf6jXppj2lYpoFsnNiWRiSkJnwAHDGR0WJNLGroJSTgi'
+CLIENT_ID= '9tlx4eMbkTHpH7SJrJdgr2kmkn8UtcCTuQNx1yiX'
+CLIENT_SECRET = 'Pq2u9U7URcJd27LTMU5bCJ12mDk7HjZ0ztxYU2sSVGxGn8J68nOQwAjXyHsinNdqTuULlfvN3XCeoCDkgGeDLBeCWtrBX0vwHDL442HkfdfVUr6e80EsZUIqhGtWJa6R'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa nếu cần
 
 # Cấu hình Redis làm broker cho Celery

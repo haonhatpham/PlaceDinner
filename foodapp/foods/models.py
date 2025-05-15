@@ -123,7 +123,6 @@ class Order(BaseModel):
     customer = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='orders')
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='orders')
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     delivery_address = models.CharField(max_length=255)

@@ -24,7 +24,6 @@ const Home = ({ navigation }) => {
   const fetchFeaturedRestaurants = async () => {
     try {
       const response = await api.get(endpoints.stores);
-      
       if (response.data && Array.isArray(response.data)) {
         const restaurants = response.data.map(store => ({
           id: store.id,
