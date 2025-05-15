@@ -6,148 +6,224 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  TextInput,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Searchbar, Chip } from 'react-native-paper';
 import api, { endpoints } from '../../configs/Apis';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const Home = ({ navigation }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  // States cho Featured Restaurants
   const [featuredRestaurants, setFeaturedRestaurants] = useState([]);
-  const [recommendedDishes, setRecommendedDishes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  // States cho Recommended Dishes với pagination
+  const [dishes, setDishes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [error, setError] = useState(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
 
-  // Hàm gọi API lấy danh sách cửa hàng nổi bật
+  // Load Featured Restaurants (không đổi)
   const fetchFeaturedRestaurants = async () => {
     try {
       const response = await api.get(endpoints.stores);
-      
       if (response.data && Array.isArray(response.data)) {
         const restaurants = response.data.map(store => ({
           id: store.id,
           name: store.name,
-          image: store.image || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png', // Ảnh mặc định nếu không có
+          image: store.avatar || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png',
           cuisine: store.description || 'Không xác định',
           rating: 'Chưa có đánh giá',
           address: store.address,
           opening_hours: store.opening_hours
         }));
         setFeaturedRestaurants(restaurants);
-      } else {
-        console.log('Invalid restaurant data structure:', response.data);
-        setFeaturedRestaurants([]);
-        setError('Dữ liệu cửa hàng không hợp lệ');
       }
     } catch (err) {
-      console.error('Restaurant API Error:', err.response?.data || err.message);
+      console.error('Restaurant API Error:', err);
       setError('Không thể tải danh sách cửa hàng');
-      setFeaturedRestaurants([]);
     }
   };
 
-  // Hàm gọi API lấy danh sách món ăn đề xuất
-  const fetchRecommendedDishes = async () => {
+  // Load Categories (nếu có API)
+  const loadCategories = async () => {
     try {
-      const response = await api.get(endpoints.foods);
-      if (response.data && response.data.results && Array.isArray(response.data.results)) {
-        setRecommendedDishes(response.data.results);
-      } else {
-        setRecommendedDishes([]);
-        setError('Dữ liệu món ăn không hợp lệ');
-      }
+      // Giả sử có API categories, nếu không thì bỏ qua
+      // const response = await api.get(endpoints.categories);
+      // setCategories(response.data);
     } catch (err) {
-      console.error('Food API Error:', err.response?.data || err.message);
-      setError('Không thể tải danh sách món ăn');
-      setRecommendedDishes([]);
+      console.error('Categories Error:', err);
     }
   };
 
-  // Gọi API khi component mount
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
+  // Load Dishes với pagination và search
+  const loadDishes = async () => {
+    if (page > 0) {
+      if (!endpoints.foods) {
+        console.log('Foods endpoint not available');
+        return;
+      }
+
+      let url = `${endpoints.foods}?page=${page}`;
+      
+      if (searchQuery) {
+        url += `&search=${searchQuery}`;
+      }
+      
+      if (selectedCategory) {
+        url += `&category=${selectedCategory}`;
+      }
+
       try {
-        await Promise.all([
-          fetchFeaturedRestaurants(),
-          fetchRecommendedDishes()
-        ]);
+        setLoading(true);
+        console.log('Calling foods API:', url, 'Page:', page);
+        const response = await api.get(url);
+        
+        // Kiểm tra cấu trúc response
+        let results = [];
+        let hasNext = false;
+        
+        if (response.data && response.data.results && Array.isArray(response.data.results)) {
+          results = response.data.results;
+          hasNext = !!response.data.next;
+          
+          // Nếu không có next hoặc results rỗng, dừng pagination
+          if (!hasNext || results.length === 0) {
+            setPage(0);
+            setHasMore(false);
+          } else {
+            setHasMore(true);
+          }
+        } else if (response.data && Array.isArray(response.data)) {
+          results = response.data;
+          setPage(0); // Không có pagination
+          setHasMore(false);
+        } else {
+          console.log('No valid data in response');
+          setPage(0);
+          setHasMore(false);
+          return;
+        }
+        
+        setDishes(page === 1 ? results : [...dishes, ...results]);
+        console.log('Loaded:', results.length, 'items. Has more:', hasNext);
+        
       } catch (err) {
-        setError('Có lỗi xảy ra khi tải dữ liệu');
+        console.error('Food API Error:', err.response?.status, err.response?.data || err.message);
+        
+        // Set page = 0 và hasMore = false khi có lỗi
+        setPage(0);
+        setHasMore(false);
+        
+        if (err.response?.status === 404) {
+          console.log('No more pages available');
+          if (page === 1) {
+            setError('API món ăn chưa được triển khai');
+          }
+        } else {
+          setError('Không thể tải danh sách món ăn');
+        }
       } finally {
         setLoading(false);
       }
-    };
-
-    loadData();
-  }, []);
-
-  // Hàm tìm kiếm
-  const handleSearch = () => {
-    navigation.navigate('Search', { 
-      query: searchQuery,
-      endpoint: endpoints.foods
-    });
+    }
   };
 
-  // Component hiển thị cửa hàng
+  // Initial load
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setInitialLoading(true);
+      await Promise.all([
+        fetchFeaturedRestaurants(),
+        loadCategories()
+      ]);
+      setInitialLoading(false);
+    };
+    loadInitialData();
+  }, []);
+
+  // Load dishes with debounce
+  useEffect(() => {
+    if (endpoints.foods) {
+      console.log('useEffect triggered - searchQuery:', searchQuery, 'selectedCategory:', selectedCategory, 'page:', page);
+      const timer = setTimeout(() => {
+        loadDishes();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [searchQuery, selectedCategory, page]);
+
+  // Reset when search/filter changes
+  useEffect(() => {
+    if (endpoints.foods) {
+      console.log('Resetting dishes - searchQuery changed:', searchQuery, 'selectedCategory:', selectedCategory);
+      setPage(1);
+      setDishes([]);
+      setHasMore(true); // Reset hasMore
+    }
+  }, [searchQuery, selectedCategory]);
+
+  // Load more dishes với protection tốt hơn
+  const loadMore = () => {
+    console.log('LoadMore called - Loading:', loading, 'Page:', page, 'HasMore:', hasMore, 'Dishes length:', dishes.length);
+    // Chỉ load more khi:
+    // 1. Không đang loading
+    // 2. Có page > 0 (tức là còn data để load)
+    // 3. Có hasMore = true
+    // 4. Đã có ít nhất 1 item (để tránh trigger ngay lập tức)
+    if (!loading && page > 0 && hasMore && dishes.length > 0) {
+      setPage(page + 1);
+    }
+  };
+
+  // Restaurant Card Component (không đổi)
   const RestaurantCard = ({ restaurant }) => (
     <TouchableOpacity 
       style={styles.card}
       onPress={() => navigation.navigate('RestaurantDetail', { 
         id: restaurant.id,
-        endpoint: endpoints['restaurant-detail'](restaurant.id)
+        name: restaurant.name
       })}
     >
-      <Image 
-        source={{ uri: restaurant.image }} 
-        style={styles.cardImage}
-      />
+      <Image source={{ uri: restaurant.image }} style={styles.cardImage} />
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{restaurant.name}</Text>
-        <Text style={styles.cardSubtitle}>{restaurant.cuisine}</Text>
+        <Text style={styles.cardSubtitle} numberOfLines={2}>{restaurant.cuisine}</Text>
         <Text style={styles.cardRating}>⭐ {restaurant.rating}</Text>
       </View>
     </TouchableOpacity>
   );
 
-  // Component hiển thị món ăn
-  const DishCard = ({ dish }) => {
-    return (
-      <TouchableOpacity 
-        style={styles.card}
-        onPress={() => navigation.navigate('DishDetail', { 
-          id: dish.id,
-          endpoint: endpoints['dish-detail'](dish.id)
-        })}
-      >
-        <Image 
-          source={{ uri: dish.image }} 
-          style={styles.cardImage}
-        />
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle}>{dish.name}</Text>
-          <Text style={styles.cardPrice}>{dish.price.toLocaleString('vi-VN')}đ</Text>
-          <Text style={styles.cardRestaurant}>{dish.restaurant_name}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  // Dish Item cho FlatList
+  const DishItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.dishItem}
+      onPress={() => navigation.navigate('DishDetail', { 
+        id: item.id,
+        name: item.name
+      })}
+    >
+      <Image source={{ uri: item.image }} style={styles.dishImage} />
+      <View style={styles.dishContent}>
+        <Text style={styles.dishTitle}>{item.name}</Text>
+        <Text style={styles.dishPrice}>{item.price?.toLocaleString('vi-VN')}đ</Text>
+        <Text style={styles.dishRestaurant}>{item.restaurant_name}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </View>
     );
   }
@@ -156,44 +232,93 @@ const Home = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* Header với thanh tìm kiếm */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <Searchbar
+          placeholder="Tìm kiếm món ăn..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
           style={styles.searchBar}
-          onPress={() => navigation.navigate('Search')}
-        >
-          <Icon name="search" size={24} color="#666" />
-          <Text style={styles.searchPlaceholder}>Tìm kiếm món ăn, nhà hàng...</Text>
-        </TouchableOpacity>
+        />
       </View>
 
-      <ScrollView>
-        {/* Phần cửa hàng nổi bật */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cửa hàng nổi bật</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {featuredRestaurants && featuredRestaurants.length > 0 ? (
-              featuredRestaurants.map(restaurant => (
-                <RestaurantCard key={restaurant.id} restaurant={restaurant} />
-              ))
-            ) : (
-              <Text style={styles.emptyText}>Không có cửa hàng nào</Text>
-            )}
-          </ScrollView>
-        </View>
+      <FlatList
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {/* Phần cửa hàng nổi bật */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Cửa hàng nổi bật</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {featuredRestaurants.map(restaurant => (
+                  <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+                ))}
+              </ScrollView>
+            </View>
 
-        {/* Phần món ăn đề xuất */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Món ăn đề xuất</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {recommendedDishes && recommendedDishes.length > 0 ? (
-              recommendedDishes.map(dish => (
-                <DishCard key={dish.id} dish={dish} />
-              ))
-            ) : (
-              <Text style={styles.emptyText}>Không có món ăn nào</Text>
+            {/* Categories Filter (nếu có) */}
+            {categories.length > 0 && (
+              <View style={styles.categorySection}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+                    <Chip 
+                      selected={!selectedCategory}
+                      style={styles.categoryChip}
+                    >
+                      Tất cả
+                    </Chip>
+                  </TouchableOpacity>
+                  {categories.map(category => (
+                    <TouchableOpacity 
+                      key={category.id}
+                      onPress={() => setSelectedCategory(category.id)}
+                    >
+                      <Chip 
+                        selected={selectedCategory === category.id}
+                        style={styles.categoryChip}
+                      >
+                        {category.name}
+                      </Chip>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             )}
-          </ScrollView>
+
+            {/* Title cho Dishes */}
+            <Text style={[styles.sectionTitle, { marginHorizontal: 15, marginTop: 10 }]}>
+              Món ăn đề xuất
+            </Text>
+          </>
+        }
+        data={dishes}
+        renderItem={({ item }) => <DishItem item={item} />}
+        keyExtractor={(item) => item.id.toString()}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.1}
+        ListFooterComponent={
+          loading && (
+            <View style={styles.footerLoading}>
+              <ActivityIndicator size="small" color="#0000ff" />
+            </View>
+          )
+        }
+        ListEmptyComponent={
+          !loading && (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Không có món ăn nào</Text>
+            </View>
+          )
+        }
+      />
+
+      {/* Error Banner */}
+      {error && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={() => setError(null)}>
+            <Icon name="close" size={20} color="#c62828" />
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -210,17 +335,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    height: 40,
-  },
-  searchPlaceholder: {
-    marginLeft: 8,
-    color: '#666',
-    fontSize: 16,
+    borderRadius: 25,
+    elevation: 3,
   },
   section: {
     padding: 15,
@@ -230,16 +346,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
+  // Restaurant Card Styles (giữ nguyên)
   card: {
     width: 200,
     marginRight: 15,
     backgroundColor: '#fff',
     borderRadius: 10,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
@@ -249,6 +363,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
+    resizeMode: 'cover',
   },
   cardContent: {
     padding: 10,
@@ -267,36 +382,91 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#f39c12',
   },
-  cardPrice: {
+  // Category Styles
+  categorySection: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  categoryChip: {
+    marginRight: 10,
+  },
+  // Dish Item Styles
+  dishItem: {
+    flexDirection: 'row',
+    padding: 15,
+    backgroundColor: '#fff',
+    marginHorizontal: 15,
+    marginVertical: 5,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  dishImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    resizeMode: 'cover',
+  },
+  dishContent: {
+    flex: 1,
+    marginLeft: 15,
+    justifyContent: 'center',
+  },
+  dishTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  dishPrice: {
     fontSize: 14,
     color: '#e74c3c',
     fontWeight: 'bold',
     marginBottom: 5,
   },
-  cardRestaurant: {
+  dishRestaurant: {
     fontSize: 12,
     color: '#666',
   },
+  // Loading & Error Styles
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
   },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
+  footerLoading: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: 50,
+    alignItems: 'center',
   },
   emptyText: {
-    textAlign: 'center',
-    padding: 20,
     color: '#666',
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+  },
+  errorBanner: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#ffebee',
+    padding: 15,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#c62828',
+    flex: 1,
   },
 });
 

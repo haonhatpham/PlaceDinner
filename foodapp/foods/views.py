@@ -56,7 +56,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 
     # Cho tìm kiếm
     def get_queryset(self):
-        queryset = Food.objects.filter(is_available=True)
+        queryset = Food.objects.filter(is_available=True).order_by('-created_date')
 
         # Lọc theo cửa hàng (nếu có query param `store_id`)
         store_id = self.request.query_params.get('store_id')
@@ -101,7 +101,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 
 
 class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
-    queryset = Store.objects.filter(is_approved=True)
+    queryset = Store.objects.filter(is_approved=True).select_related('account')  # Thêm select_related
     serializer_class = StoreSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -655,7 +655,14 @@ class OrderViewSet(viewsets.ModelViewSet,generics.UpdateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]  # hoặc IsStoreOwner nếu giới hạn cho store
+    filterset_fields = ['status', 'payment_method']
+    search_fields = ['customer__user__username', 'store__name']
 
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'store'):
+            return self.queryset.filter(store=user.store)
+        return self.queryset.filter(customer__user=user)
 
     @action(detail=True, methods=["patch"], url_path="confirm")
     def update_status(self, request, pk=None):

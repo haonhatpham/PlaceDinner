@@ -75,10 +75,14 @@ const Login = () => {
                 // Cập nhật state và chuyển hướng
                 dispatch({
                     "type": "login",
-                    "payload": userRes.data
+                    "payload": {
+                        ...userRes.data,
+                        token: res.data.access_token
+                    }
                 });
                 
-                nav.replace('Trang chủ');
+                // Sử dụng navigate thay vì replace
+                nav.navigate('Trang chủ');
             } catch (ex) {
                 console.error(ex);
                 if (ex.response) {

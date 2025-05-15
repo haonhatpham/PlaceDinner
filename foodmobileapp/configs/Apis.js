@@ -17,6 +17,7 @@ export const endpoints = {
     'register': '/users/',
     'stores': '/stores/',
     'foods': '/foods/',
+    'food_detail': (id) => `/foods/${id}/`,
     'categories': '/categories/',
     'orders': '/orders/',
     'order-detail': (id) => `/orders/${id}/`,
