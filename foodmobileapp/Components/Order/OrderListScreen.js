@@ -50,7 +50,7 @@ const OrderListScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const res = await authApi(user.token).get(endpoints['user-orders']);
+      const res = await authApi(token).get(endpoints['user-orders']);
       setOrders(res.data);
     } catch (err) {
       console.error('Error loading orders:', err);

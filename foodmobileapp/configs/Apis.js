@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Cấu hình base URL cho API
-export const BASE_URL = 'http://192.168.100.86:8000';
+export const BASE_URL = 'http://192.168.100.22:8000';
 
 // Hàm xử lý URL ảnh
 export const getImageUrl = (imagePath) => {
@@ -15,20 +15,24 @@ export const endpoints = {
     'login': '/o/token/',
     'current-user': '/users/current_user/',
     'register': '/users/',
+
     'stores': '/stores/',
+
     'foods': '/foods/',
     'food_detail': (id) => `/foods/${id}/`,
+    'store-foods':'/foods/my-store/',
+    
     'categories': '/categories/',
-    'orders': '/orders/',
-    'order-detail': (id) => `/orders/${id}/`,
+
     'create-order': '/orders/',
-    'update-order': (id) => `/orders/${id}/`,
-    'delete-order': (id) => `/orders/${id}/`,
     'user-orders': '/orders/my-orders/',
-    'store-orders': '/orders/store/',
-    'store-foods': (id) => `/stores/${id}/foods/`,
+    'order-detail': (id) => `/orders/${id}/`,
+    'store-orders': '/orders/my-store/',
     'store-categories': (id) => `/stores/${id}/categories/`,
-    'store-orders': (id) => `/stores/${id}/orders/`,
+    'store-orders': '/orders/my-store/',
+    'confirm-order':(id) => `/orders/${id}/confirm`,
+    'deliver-order':(id) => `/orders/${id}/deliver`,
+
     'store-stats': (id) => `/stores/${id}/stats/`,
     'store-revenue': (id) => `/stores/${id}/revenue/`,
     'store-foods-stats': (id) => `/stores/${id}/foods/stats/`,

@@ -132,8 +132,11 @@ const DishDetail = ({ route, navigation }) => {
     }
 
     try {
+      // Lấy token từ AsyncStorage
+      const token = await AsyncStorage.getItem('token');
+      
       // Kiểm tra tình trạng tài khoản
-      if (!user.token) {
+      if (!token) {
         // Yêu cầu đăng nhập nếu không có token
         Alert.alert(
           'Phiên đăng nhập hết hạn',

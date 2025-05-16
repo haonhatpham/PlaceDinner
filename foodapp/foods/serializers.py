@@ -91,6 +91,7 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
         # Thêm thông tin cửa hàng nếu role là STORE
         if instance.role == Account.Role.STORE and hasattr(instance, 'store'):
             data['store'] = {
+                'id': instance.store.id,
                 'name': instance.store.name,
                 'latitude': instance.store.latitude,
                 'longitude': instance.store.longitude,

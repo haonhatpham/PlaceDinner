@@ -105,6 +105,19 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
 
+    @action(detail=False, methods=['GET','POST'], url_path='my-store', permission_classes=[permissions.AllowAny])
+    def get_my_store_foods(self, request):
+        if request.method == 'GET':
+            foods = Food.objects.filter(store=request.user.account.store)
+            serializer = self.get_serializer(foods, many=True)
+            return Response(serializer.data)
+        # POST
+        serializer = FoodSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(store=request.user.account.store)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print(serializer.errors)  # Thêm dòng này
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Store.objects.filter(is_approved=True).select_related('account')  # Thêm select_related
@@ -463,109 +476,13 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
     @action(detail=False, methods=['get'], url_path='my-store', permission_classes=[permissions.IsAuthenticated])
     def my_store(self, request):
         # GET /stores/my-store/ → Lấy thông tin cửa hàng của user(là chủ cửa hàng)
         store = request.user.store
         serializer = self.get_serializer(store)
         return Response(serializer.data)
-    # Chủ cửa hàng lấy danh sách món ăn và tạo món ăn mới
-    @action(detail=False, methods=['get', 'post'], url_path='my-store/foods',
-            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
-    def my_store_foods(self, request):
-        if request.method == 'GET':
-            foods = Food.objects.filter(store=request.user.store)
-            serializer = FoodSerializer(foods, many=True)
-            return Response(serializer.data)
-        # POST
-        serializer = FoodSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(store=request.user.store)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['get', 'put', 'patch', 'delete'], url_path='my-store/foods/(?P<food_id>[^/.]+)',
-            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
-    def my_store_food_detail(self, request, food_id=None):
-        try:
-            food = Food.objects.get(pk=food_id, store=request.user.store)
-        except Food.DoesNotExist:
-            return Response({"detail": "Không tìm thấy món."}, status=status.HTTP_404_NOT_FOUND)
-        if request.method == 'GET':
-            serializer = FoodSerializer(food)
-            return Response(serializer.data)
-        if request.method in ('PUT', 'PATCH'):
-            serializer = FoodSerializer(food, data=request.data, partial=(request.method == 'PATCH'))
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        # DELETE
-        food.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=False, methods=['get', 'post'], url_path='my-store/menus',
-            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
-    def my_store_menus(self, request):
-        """GET /stores/my-store/menus/ & POST create menu for current user's store"""
-        if request.method == 'GET':
-            menus = Menu.objects.filter(store=request.user.store)
-            serializer = MenuSerializer(menus, many=True)
-            return Response(serializer.data)
-        serializer = MenuSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(store=request.user.store)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['get', 'put', 'patch', 'delete'],
-            url_path='my-store/menus/(?P<menu_id>[^/.]+)',
-            permission_classes=[permissions.IsAuthenticated, IsStoreOwner])
-    def my_store_menu_detail(self, request, menu_id=None):
-        """Handle retrieve/update/delete a menu of current user's store"""
-        try:
-            menu = Menu.objects.get(pk=menu_id, store=request.user.store)
-        except Menu.DoesNotExist:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        if request.method == 'GET':
-            return Response(MenuSerializer(menu).data)
-        if request.method in ('PUT', 'PATCH'):
-            serializer = MenuSerializer(menu, data=request.data, partial=(request.method == 'PATCH'))
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        menu.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=False, methods=["patch"], url_path="my-store/orders/(?P<order_id>[^/.]+)/confirm")
-    def confirm_order(self, request, order_id=None):
-        try:
-            order = Order.objects.get(pk=order_id, store=request.user.store)
-        except Order.DoesNotExist:
-            return Response({"error": "Không tìm thấy đơn hàng."}, status=404)
-
-        if order.status != Order.Status.PENDING:
-            return Response({"error": "Chỉ xác nhận đơn đang chờ."}, status=400)
-
-        order.status = Order.Status.CONFIRMED
-        order.save()
-        return Response({"message": "Đã xác nhận đơn hàng.", "status": order.status})
-
-    @action(detail=False, methods=["patch"], url_path="my-store/orders/(?P<order_id>[^/.]+)/deliver")
-    def deliver_order(self, request, order_id=None):
-        try:
-            order = Order.objects.get(pk=order_id, store=request.user.store)
-        except Order.DoesNotExist:
-            return Response({"error": "Không tìm thấy đơn hàng."}, status=404)
-
-        if order.status != Order.Status.CONFIRMED:
-            return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
-
-        order.status = Order.Status.COMPLETED
-        order.save()
-        return Response({"message": "Đã giao hàng thành công.", "status": order.status})
 class ReviewDetailView(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
@@ -617,25 +534,24 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView):
         orders = Order.objects.filter(customer=request.user.account)
         return Response(self.get_serializer(orders, many=True).data)
 
-    @action(detail=True, methods=["patch"], url_path="confirm")
-    def update_status(self, request, pk=None):
+    # GET /orders/my-store/ → Lấy đơn hàng của cửa hàng hiện tại (chủ cửa hàng)
+    @action(detail=False, methods=['GET'], url_path='my-store', permission_classes=[IsStoreOwner])
+    def get_my_store_orders(self, request):
+        orders = Order.objects.filter(store=request.user.store)
+        serializer = self.get_serializer(orders, many=True)
+        return Response(serializer.data)
+
+    # PATCH /orders/{id}/confirm/ → Xác nhận đơn hàng
+    @action(detail=True, methods=['PATCH'], url_path='confirm', permission_classes=[IsStoreOwner])
+    def confirm_order(self, request, pk=None):
         order = self.get_object()
-
-        # Kiểm tra nếu trạng thái là PENDING, thì chuyển sang CONFIRMED
-        if order.status == Order.Status.PENDING:
-            order.status = Order.Status.CONFIRMED
-        else:
-            return Response({"error": "Chỉ có thể cập nhật từ trạng thái PENDING sang CONFIRMED."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
+        order.status = Order.Status.CONFIRMED
         order.save()
-        return Response({"message": "Cập nhật trạng thái thành công.", "status": order.status})
+        return Response({'status': 'Đã xác nhận đơn hàng'})
 
-    @action(detail=True, methods=["patch"], url_path="deliver")
+    @action(detail=True, methods=["patch"], url_path="deliver", permission_classes=[IsStoreOwner])
     def deliver_order(self, request, pk=None):
         order = self.get_object()
-        # if order.status != Order.Status.CONFIRMED:
-        #     return Response({"error": "Chỉ giao đơn đã được xác nhận."}, status=400)
         order.status = Order.Status.COMPLETED
         order.save()
         return Response({"message": "Đơn đã giao thành công."})
@@ -676,8 +592,14 @@ class HomeView(View):
 class MenuViewSet(viewsets.ViewSet,generics.CreateAPIView):
     queryset = Menu.objects.all()
     serializer_class = MenuSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsStoreOwner]
 
+    # GET /menus/my-store/ → Lấy menu của cửa hàng hiện tại
+    @action(detail=False, methods=['GET'], url_path='my-store')
+    def get_my_store_menus(self, request):
+        menus = Menu.objects.filter(store=request.user.store)
+        serializer = self.get_serializer(menus, many=True)
+        return Response(serializer.data)
 
 logger = logging.getLogger(__name__)
 
