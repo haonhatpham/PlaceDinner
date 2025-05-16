@@ -57,38 +57,46 @@ const OrderScreen = ({ route, navigation }) => {
 
   // Xử lý đặt hàng
   const handleCreateOrder = async () => {
-    if (!user || !user.token) {
+    if (!user) {
       Alert.alert('Thông báo', 'Bạn cần đăng nhập để đặt hàng!');
       return;
     }
 
-    if (!address) {
-      Alert.alert('Thông báo', 'Vui lòng nhập địa chỉ giao hàng!');
-      return;
-    }
-
-    if (!phoneNumber) {
-      Alert.alert('Thông báo', 'Vui lòng nhập số điện thoại!');
-      return;
-    }
-
-    if (orderItems.length === 0) {
-      Alert.alert('Thông báo', 'Đơn hàng trống!');
-      return;
-    }
-
-    // Kiểm tra xem tất cả các món có thuộc cùng một cửa hàng không
-    const storeIds = new Set(orderItems.map(item => item.store_id).filter(id => id));
-    if (storeIds.size > 1) {
-      Alert.alert('Thông báo', 'Hiện tại chỉ có thể đặt món từ một cửa hàng trong một lần đặt hàng');
-      return;
-    }
-    
-    console.info(orderItems[0]?.store_id );
-    // Lấy store_id từ món đầu tiên, hoặc dùng ID mặc định nếu không có
-    const storeId = orderItems[0]?.store_id || 1; // Sử dụng ID mặc định là 1 nếu không tìm thấy
-
     try {
+      // Lấy token từ AsyncStorage
+      const token = await AsyncStorage.getItem('token');
+      
+      if (!token) {
+        Alert.alert('Thông báo', 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!');
+        return;
+      }
+
+      if (!address) {
+        Alert.alert('Thông báo', 'Vui lòng nhập địa chỉ giao hàng!');
+        return;
+      }
+
+      if (!phoneNumber) {
+        Alert.alert('Thông báo', 'Vui lòng nhập số điện thoại!');
+        return;
+      }
+
+      if (orderItems.length === 0) {
+        Alert.alert('Thông báo', 'Đơn hàng trống!');
+        return;
+      }
+
+      // Kiểm tra xem tất cả các món có thuộc cùng một cửa hàng không
+      const storeIds = new Set(orderItems.map(item => item.store_id).filter(id => id));
+      if (storeIds.size > 1) {
+        Alert.alert('Thông báo', 'Hiện tại chỉ có thể đặt món từ một cửa hàng trong một lần đặt hàng');
+        return;
+      }
+      
+      console.info(orderItems[0]?.store_id );
+      // Lấy store_id từ món đầu tiên, hoặc dùng ID mặc định nếu không có
+      const storeId = orderItems[0]?.store_id || 1;
+
       setCreatingOrder(true);
 
       // In thông tin các món để debug
@@ -108,7 +116,7 @@ const OrderScreen = ({ route, navigation }) => {
       };
 
       // Gọi API tạo đơn hàng
-      const response = await authApi(user.token).post(endpoints['create-order'], orderData);
+      const response = await authApi(token).post(endpoints['create-order'], orderData);
 
       console.log("Order created successfully:", response.data);
 
