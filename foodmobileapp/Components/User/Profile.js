@@ -38,14 +38,14 @@ const Profile = () => {
                 <Card style={[MyStyles.m, { marginTop: 10 }]}>
                     <Card.Title title="Thông tin cá nhân" />
                     <Card.Content>
-                        <Text style={MyStyles.text}>Tên đăng nhập: {user?.username}</Text>
+                        <Text style={MyStyles.text}>Họ và tên: {user?.first_name} {user?.last_name}</Text>
                         <Text style={MyStyles.text}>Email: {user?.email}</Text>
-                        <Text style={MyStyles.text}>Loại tài khoản: {user?.role === 'STORE' ? 'Cửa hàng' : 'Khách hàng'}</Text>
+                        <Text style={MyStyles.text}>Loại tài khoản: {user.role == "Chủ cửa hàng" ? 'Cửa hàng' : 'Khách hàng'}</Text>
                     </Card.Content>
                 </Card>
 
                 {/* Thông tin cửa hàng - chỉ hiển thị nếu là tài khoản cửa hàng */}
-                {user?.role === 'STORE' && user?.store && (
+                {user.role == 'Chủ cửa hàng' && user?.store && (
                     <Card style={[MyStyles.m, { marginTop: 10 }]}>
                         <Card.Title title="Thông tin cửa hàng" />
                         <Card.Content>
@@ -64,7 +64,7 @@ const Profile = () => {
                         </Card.Content>
                     </Card>
                 )}
-
+      
                 {/* Nút đăng xuất */}
                 <Card style={[MyStyles.m, { marginTop: 10 }]}>
                     <Card.Content>
