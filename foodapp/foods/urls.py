@@ -8,6 +8,7 @@ from foods.webhook import momo_webhook_view
 router = DefaultRouter()
 router.register('users', UserViewSet, basename='user')
 router.register('foods', FoodViewSet, basename='food')
+router.register('menus', MenuViewSet, basename='menu')
 router.register('stores', StoreViewSet, basename='store')
 router.register('reviews', ReviewDetailView, basename='review')
 router.register('orders', OrderViewSet, basename='order')

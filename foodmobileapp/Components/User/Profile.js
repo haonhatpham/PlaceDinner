@@ -48,7 +48,8 @@ const Profile = () => {
                 </Card>
 
                 {/* Thông tin cửa hàng - chỉ hiển thị nếu là tài khoản cửa hàng */}
-                {user?.role === 'Chủ cửa hàng' && user?.store && (
+                {user.role == 'Chủ cửa hàng' && user?.store && (
+
                     <Card style={[MyStyles.m, { marginTop: 10 }]}>
                         <Card.Title title="Thông tin cửa hàng" />
                         <Card.Content>
@@ -67,7 +68,7 @@ const Profile = () => {
                         </Card.Content>
                     </Card>
                 )}
-
+      
                 {/* Nút đăng xuất */}
                 <Card style={[MyStyles.m, { marginTop: 10 }]}>
                     <Card.Content>
