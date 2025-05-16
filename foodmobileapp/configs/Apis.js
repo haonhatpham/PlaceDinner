@@ -24,7 +24,7 @@ export const endpoints = {
     'create-order': '/orders/',
     'update-order': (id) => `/orders/${id}/`,
     'delete-order': (id) => `/orders/${id}/`,
-    'user-orders': '/orders/user/',
+    'user-orders': '/orders/my-orders/',
     'store-orders': '/orders/store/',
     'store-foods': (id) => `/stores/${id}/foods/`,
     'store-categories': (id) => `/stores/${id}/categories/`,

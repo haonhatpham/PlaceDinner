@@ -163,7 +163,7 @@ const Register = () => {
                 }
             }
         }
-
+      
         setMsg('');
         return true;
     }
@@ -173,6 +173,14 @@ const Register = () => {
         if (validate()) {
             try {
                 setLoading(true);
+                
+                // // Log dữ liệu người dùng nhập
+                // console.log("=== FORM DATA ===");
+                // console.log("User Info:", user);
+                // console.log("User Type:", userType);
+                // console.log("Avatar:", avatar);
+                // console.log("Location:", location);
+                
                 const formData = new FormData();
                 
                 // Thêm thông tin cơ bản
@@ -234,8 +242,10 @@ const Register = () => {
                 console.error('Lỗi đăng ký:', error);
             } finally {
                 setLoading(false);
+                console.log(formData);
             }
         }
+        
     }
 
     return (
@@ -244,12 +254,7 @@ const Register = () => {
                 <Text style={MyStyles.title}>Đăng Ký Tài Khoản</Text>
             </View>
 
-            {/* Hiển thị thông báo lỗi/thành công */}
-            {msg && (
-                <HelperText type="error" visible={true} style={MyStyles.m}>
-                    {msg}
-                </HelperText>
-            )}
+            
 
             {/* Chọn loại tài khoản */}
             <SegmentedButtons
@@ -282,7 +287,10 @@ const Register = () => {
                     </View>
                 )}
             </TouchableOpacity>
-            
+             {/* Chú thích trường bắt buộc */}
+             <Text style={[MyStyles.m, { textAlign: 'center', color: '#666' }]}>
+                * Trường bắt buộc
+            </Text>
             {/* Form thông tin cơ bản */}
             {basicInfo.map(field => (
                 <TextInput 
@@ -359,11 +367,13 @@ const Register = () => {
                     Đã có tài khoản? Đăng nhập ngay
                 </Text>
             </TouchableOpacity>
-
-            {/* Chú thích trường bắt buộc */}
-            <Text style={[MyStyles.m, { textAlign: 'center', color: '#666' }]}>
-                * Trường bắt buộc
-            </Text>
+            {/* Hiển thị thông báo lỗi/thành công */}
+            {msg && (
+                <HelperText type="error" visible={true} style={MyStyles.m}>
+                    {msg}
+                </HelperText>
+            )}
+          
         </ScrollView>
     );
 }

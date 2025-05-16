@@ -53,14 +53,18 @@ const Login = () => {
                 setLoading(true);
                 setMsg('');
                 
-                // Gọi API đăng nhập
-                const res = await api.post(endpoints['login'], {
+                const loginData = {
                     username: user.username,
                     password: user.password,
                     client_id: '9tlx4eMbkTHpH7SJrJdgr2kmkn8UtcCTuQNx1yiX',
                     client_secret: 'Pq2u9U7URcJd27LTMU5bCJ12mDk7HjZ0ztxYU2sSVGxGn8J68nOQwAjXyHsinNdqTuULlfvN3XCeoCDkgGeDLBeCWtrBX0vwHDL442HkfdfVUr6e80EsZUIqhGtWJa6R',
                     grant_type: 'password'
-                });
+                };
+                
+                console.log("Login Request Data:", loginData);
+                
+                // Gọi API đăng nhập
+                const res = await api.post(endpoints['login'], loginData);
                 
                 console.log(res.data);  // In ra dữ liệu trả về từ API
                 // Lưu token
@@ -75,14 +79,10 @@ const Login = () => {
                 // Cập nhật state và chuyển hướng
                 dispatch({
                     "type": "login",
-                    "payload": {
-                        ...userRes.data,
-                        token: res.data.access_token
-                    }
+                    "payload": userRes.data
                 });
                 
-                // Sử dụng navigate thay vì replace
-                nav.navigate('Trang chủ');
+                nav.replace('Trang chủ');
             } catch (ex) {
                 console.error(ex);
                 if (ex.response) {

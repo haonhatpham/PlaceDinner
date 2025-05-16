@@ -12,6 +12,7 @@ import Register from "./Components/User/Register";
 import Profile from "./Components/User/Profile";
 import SearchScreen from "./Components/Search/SearchScreen";
 import DishDetail from "./Components/Food/DishDetail";
+import RevenueStats from "./Components/Statistics/RevenueStats";
 import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
 
@@ -24,6 +25,7 @@ const HomeStack = () => (
     <Stack.Screen name="Order" component={OrderScreen} options={{ title: "Chi tiết đơn hàng" }} />
     <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Tìm kiếm món ăn" }} />
     <Stack.Screen name="DishDetail" component={DishDetail} options={{ title: "Chi tiết món ăn" }} />
+    <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
   </Stack.Navigator>
 );
 
