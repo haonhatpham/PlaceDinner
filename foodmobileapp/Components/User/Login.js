@@ -53,18 +53,14 @@ const Login = () => {
                 setLoading(true);
                 setMsg('');
                 
-                const loginData = {
+                // Gọi API đăng nhập
+                const res = await api.post(endpoints['login'], {
                     username: user.username,
                     password: user.password,
                     client_id: '9tlx4eMbkTHpH7SJrJdgr2kmkn8UtcCTuQNx1yiX',
                     client_secret: 'Pq2u9U7URcJd27LTMU5bCJ12mDk7HjZ0ztxYU2sSVGxGn8J68nOQwAjXyHsinNdqTuULlfvN3XCeoCDkgGeDLBeCWtrBX0vwHDL442HkfdfVUr6e80EsZUIqhGtWJa6R',
                     grant_type: 'password'
-                };
-                
-                console.log("Login Request Data:", loginData);
-                
-                // Gọi API đăng nhập
-                const res = await api.post(endpoints['login'], loginData);
+                });
                 
                 console.log(res.data);  // In ra dữ liệu trả về từ API
                 // Lưu token
