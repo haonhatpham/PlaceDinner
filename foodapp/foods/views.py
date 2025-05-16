@@ -614,7 +614,7 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView):
 
     @action(detail=False, methods=['get'], url_path='my-orders')
     def my_orders(self, request):
-        orders = Order.objects.filter(customer=request.user)
+        orders = Order.objects.filter(customer=request.user.account)
         return Response(self.get_serializer(orders, many=True).data)
 
     @action(detail=True, methods=["patch"], url_path="confirm")
