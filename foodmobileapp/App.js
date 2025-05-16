@@ -2,6 +2,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Icon } from "react-native-paper";
+import { Provider as PaperProvider } from 'react-native-paper';
 import { useContext, useReducer } from "react";
 import Home from "./Components/Home/Home";
 import OrderListScreen from "./Components/Order/OrderListScreen";
