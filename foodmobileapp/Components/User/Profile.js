@@ -8,8 +8,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const Profile = () => {
     const user = useContext(MyUserContext);
+
     const dispatch = useContext(MyDispatchContext);
     const nav = useNavigation();
+
+    console.log("Profile User Data:", JSON.stringify(user, null, 2));
 
     const logout = async () => {
         try {
@@ -33,19 +36,19 @@ const Profile = () => {
         <ScrollView style={MyStyles.container}>
             <View style={MyStyles.m}>
                 <Text style={MyStyles.title}>Thông tin tài khoản</Text>
-
                 {/* Thông tin cá nhân */}
                 <Card style={[MyStyles.m, { marginTop: 10 }]}>
                     <Card.Title title="Thông tin cá nhân" />
                     <Card.Content>
-                        <Text style={MyStyles.text}>Tên đăng nhập: {user?.username}</Text>
+                        <Text style={MyStyles.text}>Họ và tên: {user?.last_name} {user?.first_name}</Text>
                         <Text style={MyStyles.text}>Email: {user?.email}</Text>
-                        <Text style={MyStyles.text}>Loại tài khoản: {user?.role === 'STORE' ? 'Cửa hàng' : 'Khách hàng'}</Text>
+                        <Text style={MyStyles.text}>Số điện thoại: {user?.phone_number}</Text>
+                        <Text style={MyStyles.text}>Loại tài khoản: {user?.role === 'Chủ cửa hàng' ? 'Cửa hàng' : 'Khách hàng'}</Text>
                     </Card.Content>
                 </Card>
 
                 {/* Thông tin cửa hàng - chỉ hiển thị nếu là tài khoản cửa hàng */}
-                {user?.role === 'STORE' && user?.store && (
+                {user?.role === 'Chủ cửa hàng' && user?.store && (
                     <Card style={[MyStyles.m, { marginTop: 10 }]}>
                         <Card.Title title="Thông tin cửa hàng" />
                         <Card.Content>
