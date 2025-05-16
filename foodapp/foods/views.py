@@ -605,7 +605,7 @@ class OrderViewSet(viewsets.ViewSet,generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]  #Cho khách hàng đặt món
 
     def get_queryset(self):
-        user = self.request.user
+        user = self.request.user.account
         if hasattr(user, 'store'):
             # Store owner chỉ xem đơn thuộc về store của họ
             return Order.objects.filter(store=user.store)

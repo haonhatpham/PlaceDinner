@@ -6,6 +6,7 @@ import { Button, Card, Divider } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+
 const Profile = () => {
     const user = useContext(MyUserContext);
 
@@ -59,7 +60,10 @@ const Profile = () => {
                             <Button 
                                 mode="contained"
                                 icon="chart-bar"
-                                onPress={() => nav.navigate('RevenueStats')}
+                                onPress={() => nav.navigate('Trang chủ', {
+                                    screen: 'RevenueStats',
+                                    params: { storeId: user.store.id }
+                                })}
                                 style={{ marginTop: 10 }}
                             >
                                 Xem thống kê doanh thu
