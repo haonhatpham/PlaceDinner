@@ -15,6 +15,7 @@ import DishDetail from "./Components/Food/DishDetail";
 import ManageFoods from "./Components/Store/ManageFoods";
 import StoreOrders from "./Components/Store/StoreOrders";
 import StoreDetail from "./Components/Store/StoreDetail";
+import RevenueStats from "./Components/Statistics/RevenueStats";
 import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
 
@@ -33,6 +34,13 @@ const StoreStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="ManageFoods" component={ManageFoods} options={{ title: "Quản lý món ăn" }} />
     <Stack.Screen name="StoreOrders" component={StoreOrders} options={{ title: "Quản lý đơn hàng" }} />
+    <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
+  </Stack.Navigator>
+);
+
+const ProfileStack = () => (
+  <Stack.Navigator>
+    <Stack.Screen name="ProfileMain" component={Profile} options={{ title: "Tài khoản" }} />
     <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
   </Stack.Navigator>
 );
@@ -102,8 +110,9 @@ const TabNavigator = () => {
           )}
           <Tab.Screen
             name="Tài khoản"
-            component={Profile}
+            component={ProfileStack}
             options={{
+              headerShown: false,
               title: "Tài khoản",
               tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="account" />,
             }}
