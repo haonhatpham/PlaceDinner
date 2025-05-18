@@ -42,7 +42,7 @@ const OrderListScreen = ({ navigation }) => {
 
   // Lấy lịch sử đơn hàng
   const fetchOrders = async () => {
-    if (!user || !user.token) {
+    if (!user || !token) {
       setOrders([]);
       setLoading(false);
       return;
@@ -50,8 +50,10 @@ const OrderListScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
+      const token = await AsyncStorage.getItem('token');
       const res = await authApi(token).get(endpoints['user-orders']);
       setOrders(res.data);
+      console.info(res.data);
     } catch (err) {
       console.error('Error loading orders:', err);
       if (err.response && err.response.status === 401) {

@@ -13,12 +13,11 @@ import Register from "./Components/User/Register";
 import Profile from "./Components/User/Profile";
 import SearchScreen from "./Components/Search/SearchScreen";
 import DishDetail from "./Components/Food/DishDetail";
-import RevenueStats from "./Components/Store/RevenueStats";
 import ManageFoods from "./Components/Store/ManageFoods";
 import StoreOrders from "./Components/Store/StoreOrders";
+import RevenueStats from "./Components/Statistics/RevenueStats";
 import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
-import { Provider as PaperProvider } from 'react-native-paper';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -36,6 +35,13 @@ const StoreStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="ManageFoods" component={ManageFoods} options={{ title: "Quản lý món ăn" }} />
     <Stack.Screen name="StoreOrders" component={StoreOrders} options={{ title: "Quản lý đơn hàng" }} />
+    <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
+  </Stack.Navigator>
+);
+
+const ProfileStack = () => (
+  <Stack.Navigator>
+    <Stack.Screen name="ProfileMain" component={Profile} options={{ title: "Tài khoản" }} />
     <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
   </Stack.Navigator>
 );
@@ -105,8 +111,9 @@ const TabNavigator = () => {
           )}
           <Tab.Screen
             name="Tài khoản"
-            component={Profile}
+            component={ProfileStack}
             options={{
+              headerShown: false,
               title: "Tài khoản",
               tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="account" />,
             }}
