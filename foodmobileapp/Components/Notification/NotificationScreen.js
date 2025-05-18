@@ -19,8 +19,10 @@ const NotificationScreen = () => {
   const fetchNotifications = async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
+      console.log('Token:', token);
       const api = authApi(token);
       const response = await api.get(endpoints.notifications);
+      console.log('Notifications response:', response.data);
       setNotifications(response.data);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -73,9 +75,9 @@ const NotificationScreen = () => {
       onPress={() => handleMarkAsRead(item.id)}
     >
       <Text style={styles.notificationTitle}>{item.title}</Text>
-      <Text style={styles.notificationContent}>{item.content}</Text>
+      <Text style={styles.notificationContent}>{item.message}</Text>
       <Text style={styles.notificationTime}>
-        {new Date(item.created_date).toLocaleString('vi-VN')}
+        {item.created_date ? new Date(item.created_date).toLocaleString('vi-VN') : 'Vừa xong'}
       </Text>
     </TouchableOpacity>
   );

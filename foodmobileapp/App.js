@@ -12,7 +12,6 @@ import Register from "./Components/User/Register";
 import Profile from "./Components/User/Profile";
 import SearchScreen from "./Components/Search/SearchScreen";
 import DishDetail from "./Components/Food/DishDetail";
-import RevenueStats from "./Components/Store/RevenueStats";
 import ManageFoods from "./Components/Store/ManageFoods";
 import StoreOrders from "./Components/Store/StoreOrders";
 import StoreDetail from "./Components/Store/StoreDetail";

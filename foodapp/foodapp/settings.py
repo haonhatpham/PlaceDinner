@@ -140,7 +140,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Ho_Chi_Minh"
 
 USE_I18N = True
 
@@ -175,3 +175,13 @@ CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
 CLIENT_ID_Hao= 'GYMVhxDK017oLOQZSalsKiQGs1DZBD4rLDe5ICf6'
 CLIENT_SECRET_Hao="SGIlxqCthtXmDNfZSagQjq3j5nIZcvgLIAZpT3cs5nCD03ieVNCW1QsK0ti0AJIWnysESlqRBleReivXqSCFxytURpVB6xqS5RildGoYH1MTqSHqTKjbtXZJc6Tx9NI9"
+
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # hoặc SMTP server của bạn
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your-email@gmail.com'  # Email của bạn
+EMAIL_HOST_PASSWORD = 'your-app-password'  # Mật khẩu ứng dụng nếu dùng Gmail
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
