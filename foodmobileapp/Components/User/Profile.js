@@ -1,10 +1,14 @@
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Text, View, ScrollView } from "react-native";
 import { MyDispatchContext, MyUserContext } from "../../configs/Contexts";
 import MyStyles from "../../styles/MyStyles";
 import { Button, Card, Divider } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import api, { authApi, endpoints } from "../../configs/Apis";
+import { useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+
 
 
 const Profile = () => {
@@ -12,6 +16,26 @@ const Profile = () => {
 
     const dispatch = useContext(MyDispatchContext);
     const nav = useNavigation();
+
+    const [followingStores, setFollowingStores] = useState([]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const fetchFollowingStores = async () => {
+                try {
+                    const token = await AsyncStorage.getItem('token');
+                    if (!token) return;
+                    const res = await authApi(token).get(endpoints['store-following']);
+                    setFollowingStores(res.data);
+                } catch (err) {
+                    console.error("Lỗi lấy danh sách cửa hàng đang theo dõi:", err);
+                }
+            };
+            if (user?.role === "Khách hàng") {
+                fetchFollowingStores();
+            }
+        }, [user])
+    );
 
     console.log("Profile User Data:", JSON.stringify(user, null, 2));
 
@@ -86,6 +110,32 @@ const Profile = () => {
                         </Button>
                     </Card.Content>
                 </Card>
+
+                {user?.role === "Khách hàng" && (
+                    <Card style={[MyStyles.m, { marginTop: 10 }]}>
+                        <Card.Title title="Cửa hàng đang theo dõi" />
+                        <Card.Content>
+                            {followingStores.length === 0 ? (
+                                <Text style={MyStyles.text}>Bạn chưa theo dõi cửa hàng nào.</Text>
+                            ) : (
+                                followingStores.map(store => (
+                                    <View key={store.id} style={{ marginBottom: 10 }}>
+                                        <Text style={MyStyles.text}>Tên: {store.name}</Text>
+                                        <Text style={MyStyles.text}>Địa chỉ: {store.address}</Text>
+                                        <Button
+                                            mode="outlined"
+                                            onPress={() => nav.navigate('StoreDetail', { id: store.id, name: store.name })}
+                                            style={{ marginTop: 5 }}
+                                        >
+                                            Xem chi tiết
+                                        </Button>
+                                        <Divider style={{ marginVertical: 5 }} />
+                                    </View>
+                                ))
+                            )}
+                        </Card.Content>
+                    </Card>
+                )}
             </View>
         </ScrollView>
     );

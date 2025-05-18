@@ -16,8 +16,26 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import api, { endpoints } from '../../configs/Apis';
 import { MyUserContext } from '../../configs/Contexts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReviewSection from './ReviewSection';
 
 const DishDetail = ({ route, navigation }) => {
+  // Kiểm tra và lấy params
+  if (!route || !route.params || !route.params.id) {
+    return (
+      <View style={styles.errorContainer}>
+        <Icon name="alert-circle" size={60} color="#c62828" />
+        <Text style={styles.errorText}>Không tìm thấy thông tin món ăn</Text>
+        <Button 
+          mode="contained" 
+          onPress={() => navigation.goBack()}
+          style={styles.errorButton}
+        >
+          Quay lại
+        </Button>
+      </View>
+    );
+  }
+
   const { id, name } = route.params;
   const [food, setFood] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,20 +45,20 @@ const DishDetail = ({ route, navigation }) => {
   const user = useContext(MyUserContext);
 
   // Lấy thông tin món ăn từ API
-  useEffect(() => {
-    const loadFoodDetail = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(endpoints.food_detail(id));
-        setFood(response.data);
-      } catch (err) {
-        console.error('Food Detail Error:', err);
-        setError('Không thể tải thông tin món ăn');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadFoodDetail = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get(endpoints.food_detail(id));
+      setFood(response.data);
+    } catch (err) {
+      console.error('Food Detail Error:', err);
+      setError('Không thể tải thông tin món ăn');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadFoodDetail();
   }, [id]);
 
@@ -168,6 +186,11 @@ const DishDetail = ({ route, navigation }) => {
     }
   };
 
+  const handleReviewAdded = () => {
+    // Tải lại thông tin món ăn để cập nhật rating
+    loadFoodDetail();
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -236,7 +259,10 @@ const DishDetail = ({ route, navigation }) => {
         {food.store && (
           <TouchableOpacity 
             style={styles.storeContainer}
-            onPress={() => navigation.navigate('RestaurantDetail', { id: food.store.id, name: food.store.name })}
+            onPress={() => navigation.navigate('StoreDetail', { 
+              id: food.store.id,
+              name: food.store.name
+            })}
           >
             <Icon name="store" size={24} color="#555" />
             <View style={styles.storeInfo}>
@@ -303,6 +329,12 @@ const DishDetail = ({ route, navigation }) => {
             </View>
           </Card.Content>
         </Card>
+
+        {/* Thêm phần đánh giá và bình luận */}
+        <ReviewSection 
+          foodId={id} 
+          onReviewAdded={handleReviewAdded}
+        />
       </ScrollView>
 
       {/* Bottom Bar với nút đặt hàng */}

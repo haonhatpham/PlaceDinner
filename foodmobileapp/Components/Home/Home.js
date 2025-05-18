@@ -29,20 +29,33 @@ const Home = ({ navigation }) => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
 
-  // Load Featured Restaurants (không đổi)
+  // Load Featured Restaurants
   const fetchFeaturedRestaurants = async () => {
     try {
       const response = await api.get(endpoints.stores);
       if (response.data && Array.isArray(response.data)) {
-        const restaurants = response.data.map(store => ({
-          id: store.id,
-          name: store.name,
-          image: store.avatar || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png',
-          cuisine: store.description || 'Không xác định',
-          rating: 'Chưa có đánh giá',
-          address: store.address,
-          opening_hours: store.opening_hours
-        }));
+        const restaurants = response.data.map(store => {
+          // Tính trung bình rating từ reviews
+          let averageRating = 0;
+          let reviewCount = 0;
+          
+          if (store.reviews && store.reviews.length > 0) {
+            const totalRating = store.reviews.reduce((sum, review) => sum + review.rating, 0);
+            reviewCount = store.reviews.length;
+            averageRating = (totalRating / reviewCount).toFixed(1);
+          }
+
+          return {
+            id: store.id,
+            name: store.name,
+            image: store.avatar || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png',
+            cuisine: store.description || 'Không xác định',
+            rating: reviewCount > 0 ? averageRating : 'Chưa có đánh giá',
+            review_count: reviewCount,
+            address: store.address,
+            opening_hours: store.opening_hours
+          };
+        });
         setFeaturedRestaurants(restaurants);
       }
     } catch (err) {
@@ -90,7 +103,23 @@ const Home = ({ navigation }) => {
         let hasNext = false;
         
         if (response.data && response.data.results && Array.isArray(response.data.results)) {
-          results = response.data.results;
+          results = response.data.results.map(food => {
+            // Tính trung bình rating từ reviews
+            let averageRating = 0;
+            let reviewCount = 0;
+            
+            if (food.reviews && food.reviews.length > 0) {
+              const totalRating = food.reviews.reduce((sum, review) => sum + review.rating, 0);
+              reviewCount = food.reviews.length;
+              averageRating = (totalRating / reviewCount).toFixed(1);
+            }
+
+            return {
+              ...food,
+              average_rating: reviewCount > 0 ? averageRating : null,
+              review_count: reviewCount
+            };
+          });
           hasNext = !!response.data.next;
           
           // Nếu không có next hoặc results rỗng, dừng pagination
@@ -101,7 +130,23 @@ const Home = ({ navigation }) => {
             setHasMore(true);
           }
         } else if (response.data && Array.isArray(response.data)) {
-          results = response.data;
+          results = response.data.map(food => {
+            // Tính trung bình rating từ reviews
+            let averageRating = 0;
+            let reviewCount = 0;
+            
+            if (food.reviews && food.reviews.length > 0) {
+              const totalRating = food.reviews.reduce((sum, review) => sum + review.rating, 0);
+              reviewCount = food.reviews.length;
+              averageRating = (totalRating / reviewCount).toFixed(1);
+            }
+
+            return {
+              ...food,
+              average_rating: reviewCount > 0 ? averageRating : null,
+              review_count: reviewCount
+            };
+          });
           setPage(0); // Không có pagination
           setHasMore(false);
         } else {
@@ -183,11 +228,11 @@ const Home = ({ navigation }) => {
     }
   };
 
-  // Restaurant Card Component (không đổi)
+  // Restaurant Card Component
   const RestaurantCard = ({ restaurant }) => (
     <TouchableOpacity 
       style={styles.card}
-      onPress={() => navigation.navigate('RestaurantDetail', { 
+      onPress={() => navigation.navigate('StoreDetail', { 
         id: restaurant.id,
         name: restaurant.name
       })}
@@ -196,7 +241,13 @@ const Home = ({ navigation }) => {
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{restaurant.name}</Text>
         <Text style={styles.cardSubtitle} numberOfLines={2}>{restaurant.cuisine}</Text>
-        <Text style={styles.cardRating}>⭐ {restaurant.rating}</Text>
+        <View style={styles.ratingContainer}>
+          <Icon name="star" size={16} color="#FFD700" />
+          <Text style={styles.ratingText}>{restaurant.rating}</Text>
+          {restaurant.review_count > 0 && (
+            <Text style={styles.reviewCount}>({restaurant.review_count} đánh giá)</Text>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -215,6 +266,16 @@ const Home = ({ navigation }) => {
         <Text style={styles.dishTitle}>{item.name}</Text>
         <Text style={styles.dishPrice}>{item.price?.toLocaleString('vi-VN')}đ</Text>
         <Text style={styles.dishRestaurant}>{item.restaurant_name}</Text>
+        {/* Rating */}
+        <View style={styles.ratingContainer}>
+          <Icon name="star" size={16} color="#FFD700" />
+          <Text style={styles.ratingText}>
+            {item.average_rating ? item.average_rating : 'Chưa có đánh giá'}
+          </Text>
+          {item.review_count > 0 && (
+            <Text style={styles.reviewCount}>({item.review_count} đánh giá)</Text>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -467,6 +528,22 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#c62828',
     flex: 1,
+  },
+  // Rating Styles
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  ratingText: {
+    fontSize: 14,
+    color: '#f39c12',
+    marginLeft: 5,
+  },
+  reviewCount: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 5,
   },
 });
 

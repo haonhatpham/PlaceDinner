@@ -17,6 +17,11 @@ export const endpoints = {
     'register': '/users/',
 
     'stores': '/stores/',
+    'store_detail': (id) => `/stores/${id}/`,
+    'store-reviews': (id) => `/stores/${id}/reviews/`,
+    'store-follow': (id) => `/stores/${id}/follow/`,
+    'store-check-following': (id) => `/stores/${id}/check_following/`,
+    'store-following': '/stores/following/',
 
     'foods': '/foods/',
     'food_detail': (id) => `/foods/${id}/`,
@@ -57,5 +62,4 @@ export const authApi = (token) => {
 export default axios.create({
     baseURL: BASE_URL
 })
-
 
