@@ -211,56 +211,44 @@ const styles = StyleSheet.create({
     address: {
         fontSize: 14,
         marginBottom: 8,
-        color: '#666',
     },
     total: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#e74c3c',
-        marginTop: 8,
+        color: '#2196F3',
     },
     emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
+        padding: 16,
         alignItems: 'center',
-        padding: 20,
     },
     emptyText: {
         fontSize: 16,
         color: '#666',
-        textAlign: 'center',
     },
     orderItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        marginBottom: 8,
     },
     itemName: {
         flex: 2,
-        fontSize: 14,
     },
     itemQuantity: {
         flex: 1,
         textAlign: 'center',
-        fontSize: 14,
     },
     itemPrice: {
         flex: 1,
         textAlign: 'right',
-        fontSize: 14,
-        fontWeight: 'bold',
     },
     orderSummary: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
         marginTop: 16,
-        paddingTop: 16,
+        paddingTop: 8,
         borderTopWidth: 1,
-        borderTopColor: '#eee',
+        borderTopColor: '#ddd',
     },
     summaryLabel: {
         fontSize: 16,
@@ -269,7 +257,7 @@ const styles = StyleSheet.create({
     summaryValue: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#e74c3c',
+        color: '#2196F3',
     },
 });
 
