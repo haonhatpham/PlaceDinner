@@ -180,7 +180,7 @@ class Review(BaseModel):
 
     customer = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='reviews')
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='reviews')
-    food = models.ForeignKey(Food, on_delete=models.CASCADE, null=True, blank=True)
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, null=True, blank=True,related_name='reviews')
     rating = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
     comment = models.TextField()
     image = CloudinaryField('review_image', null=True, blank=True)

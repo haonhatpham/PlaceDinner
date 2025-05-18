@@ -108,9 +108,30 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'
+class ReviewSerializer(serializers.ModelSerializer):
+    customer = serializers.StringRelatedField(read_only=True)  # Hiển thị tên user
 
+    class Meta:
+        model = Review
+        fields = ['id', 'customer', 'store', 'food', 'rating', 'comment', 'image', 'created_date']
+        read_only_fields = ('customer', 'created_date')
+
+    def validate(self, data):
+        # Kiểm tra: review phải thuộc store HOẶC food, không được cả hai
+        if not (data.get('store') or data.get('food')):
+            raise serializers.ValidationError("Review phải thuộc cửa hàng hoặc món ăn")
+        if data.get('store') and data.get('food'):
+            raise serializers.ValidationError("Chỉ được review 1 đối tượng mỗi lần")
+        return data
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['rating_display'] = instance.get_rating_display()
+        return data
 
 class FoodSerializer(serializers.ModelSerializer):
+    reviews = ReviewSerializer(many=True, read_only=True)  # Thêm dòng này
+
     class Meta:
         model = Food
         fields = '__all__'
@@ -136,26 +157,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = ('account',)
 
 
-class ReviewSerializer(serializers.ModelSerializer):
-    customer = serializers.StringRelatedField(read_only=True)  # Hiển thị tên user
 
-    class Meta:
-        model = Review
-        fields = ['id', 'customer', 'store', 'food', 'rating', 'comment', 'image', 'created_date']
-        read_only_fields = ('customer', 'created_date')
-
-    def validate(self, data):
-        # Kiểm tra: review phải thuộc store HOẶC food, không được cả hai
-        if not (data.get('store') or data.get('food')):
-            raise serializers.ValidationError("Review phải thuộc cửa hàng hoặc món ăn")
-        if data.get('store') and data.get('food'):
-            raise serializers.ValidationError("Chỉ được review 1 đối tượng mỗi lần")
-        return data
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['rating_display'] = instance.get_rating_display()
-        return data
 
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:
@@ -165,6 +167,9 @@ class FollowSerializer(serializers.ModelSerializer):
 
 class StoreSerializer(serializers.ModelSerializer):
     avatar = serializers.SerializerMethodField()  # Thêm dòng này
+    reviews = ReviewSerializer(many=True, read_only=True)  # Thêm dòng này
+    followers_count = serializers.IntegerField(read_only=True)
+    is_following = serializers.SerializerMethodField()
 
     class Meta:
         model = Store
@@ -172,6 +177,15 @@ class StoreSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         return obj.account.avatar.url if obj.account and obj.account.avatar else None
+
+    def get_is_following(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Follow.objects.filter(
+                customer=request.user.account,
+                store=obj
+            ).exists()
+        return False
 
 class MenuSerializer(serializers.ModelSerializer):
     class Meta:
@@ -209,9 +223,9 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'store', 'store_name', 'customer_name', 'items', 'status',
             'delivery_address', 'payment', 'note', 'payment_method',
-            'shipping_fee', 'total_amount'
+            'shipping_fee', 'total_amount', 'created_date'
         ]
-        read_only_fields = ['status', 'created_at', 'total_amount']
+        read_only_fields = ['status', 'created_date', 'total_amount']
 
     def validate(self, data):
         store = data.get('store')

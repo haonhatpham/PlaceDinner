@@ -1,8 +1,8 @@
+import React, { useState, useEffect, useContext } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native"
 import MyStyles from "../../styles/MyStyles"
 import { Button, HelperText, TextInput } from "react-native-paper";
 import * as ImagePicker from 'expo-image-picker';
-import { useContext, useState } from "react";
 import api, { authApi, endpoints } from "../../configs/Apis";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -61,12 +61,10 @@ const Login = () => {
                     grant_type: 'password'
                 };
                 
-                console.log("Login Request Data:", loginData);
                 
                 // Gọi API đăng nhập
                 const res = await api.post(endpoints['login'], loginData);
                 
-                console.log(res.data);  // In ra dữ liệu trả về từ API
                 // Lưu token
                 await AsyncStorage.setItem('token', res.data.access_token);
                 if (res.data.refresh_token) {
@@ -82,7 +80,7 @@ const Login = () => {
                     "payload": userRes.data
                 });
                 
-                nav.replace('Trang chủ');
+                nav.navigate('Trang chủ');
             } catch (ex) {
                 console.error(ex);
                 if (ex.response) {

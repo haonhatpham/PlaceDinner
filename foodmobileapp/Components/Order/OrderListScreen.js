@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const OrderListScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
+  console.log(orders);
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cartLoading, setCartLoading] = useState(true);
@@ -42,7 +43,8 @@ const OrderListScreen = ({ navigation }) => {
 
   // Lấy lịch sử đơn hàng
   const fetchOrders = async () => {
-    if (!user || !user.token) {
+    const token = await AsyncStorage.getItem('token');
+    if (!user || !token) {
       setOrders([]);
       setLoading(false);
       return;
