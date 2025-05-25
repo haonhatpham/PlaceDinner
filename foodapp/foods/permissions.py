@@ -8,7 +8,7 @@ class IsStoreOwner(permissions.BasePermission):
             request.user.is_authenticated and
             hasattr(request.user, 'account') and
             request.user.account.role == request.user.account.Role.STORE and
-            hasattr(request.user, 'store')
+            hasattr(request.user.account, 'store')
         )
 
     def has_object_permission(self, request, view, obj):

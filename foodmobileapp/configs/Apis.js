@@ -22,19 +22,24 @@ export const endpoints = {
     'store-follow': (id) => `/stores/${id}/follow/`,
     'store-check-following': (id) => `/stores/${id}/check_following/`,
     'store-following': '/stores/following/',
+    'update-opening-hours': (id) => `/stores/${id}/update_opening_hours/`,
 
     'foods': '/foods/',
     'food_detail': (id) => `/foods/${id}/`,
     'store-foods':'/foods/my-store/',
+    'update-food-availability': (id) => `/foods/${id}/update_availability/`,
     
     'categories': '/categories/',
+
+    // Menu endpoints
+    'store-menus': '/menus/my-store/',
 
     'create-order': '/orders/',
     'user-orders': '/orders/my-orders/',
     'order-detail': (id) => `/orders/${id}/`,
     'store-orders': '/orders/my-store/',
     'store-categories': (id) => `/stores/${id}/categories/`,
-    'store-orders': '/orders/my-store/',
+    'store-orders': '/store/orders/',
     'confirm-order':(id) => `/orders/${id}/confirm`,
     'deliver-order':(id) => `/orders/${id}/deliver`,
 
@@ -48,18 +53,52 @@ export const endpoints = {
     'store-categories-revenue': (id) => `/stores/${id}/categories/revenue/`,
     'store-orders-revenue': (id) => `/stores/${id}/orders/revenue/`,
     'store-revenue-revenue': (id) => `/stores/${id}/revenue/revenue/`,
+    'update-order-status': (orderId) => `/store/orders/${orderId}/status/`,
 }; 
 
 export const authApi = (token) => {
-    return axios.create({
+    const api = axios.create({
         baseURL: BASE_URL,
         headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
         }
-    })
-}
+    });
 
+    // Add request interceptor
+    api.interceptors.request.use(
+        (config) => {
+            // Ensure token is in headers
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => {
+            return Promise.reject(error);
+        }
+    );
+
+    // Add response interceptor
+    api.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response?.status === 401) {
+                // Token expired or invalid
+                console.error('Authentication error:', error);
+            }
+            return Promise.reject(error);
+        }
+    );
+
+    return api;
+};
+
+// Create an instance without auth for public endpoints
 export default axios.create({
-    baseURL: BASE_URL
-})
+    baseURL: BASE_URL,
+    headers: {
+        'Content-Type': 'application/json'
+    }
+});
 

@@ -6,7 +6,7 @@ import MyStyles from '../../styles/MyStyles';
 import { authApi, endpoints } from '../../configs/Apis';
 
 const StoreOrders = () => {
-    const user = useContext(MyUserContext);
+    const [user] = useContext(MyUserContext);
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -17,20 +17,25 @@ const StoreOrders = () => {
     }, []);
 
     const loadOrders = async () => {
+        if (!user) return;
+        
         try {
             setLoading(true);
-            const res = await authApi(user.token).get(endpoints['store-orders']);
+            const res = await authApi(user.access_token).get(endpoints['store-orders']);
             setOrders(res.data);
         } catch (error) {
             console.error('Lỗi tải danh sách đơn hàng:', error);
+            Alert.alert('Lỗi', 'Không thể tải danh sách đơn hàng');
         } finally {
             setLoading(false);
         }
     };
 
     const handleConfirmOrder = async (orderId) => {
+        if (!user) return;
+        
         try {
-            await authApi(user.token).post(endpoints['confirm-order'](orderId));
+            await authApi(user.access_token).post(endpoints['confirm-order'](orderId));
             Alert.alert('Thành công', 'Đã xác nhận đơn hàng');
             loadOrders();
         } catch (error) {
@@ -40,8 +45,10 @@ const StoreOrders = () => {
     };
 
     const handleDeliverOrder = async (orderId) => {
+        if (!user) return;
+        
         try {
-            await authApi(user.token).post(endpoints['deliver-order'](orderId));
+            await authApi(user.access_token).post(endpoints['deliver-order'](orderId));
             Alert.alert('Thành công', 'Đã ghi nhận giao hàng');
             loadOrders();
         } catch (error) {

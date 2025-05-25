@@ -51,7 +51,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
 
 
 # Cho chức năng tìm kiếm món ăn của customer
-class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
+class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView,generics.UpdateAPIView):
     serializer_class = FoodSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['category', 'meal_time', 'is_available']
@@ -119,12 +119,43 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
         print(serializer.errors)  # Thêm dòng này
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
+    def update_availability(self, request, pk=None):
+        food = get_object_or_404(Food, pk=pk)
 
-class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
+        # Kiểm tra quyền sở hữu
+        if food.store.account != request.user.account:
+            return Response({'error': 'Bạn không có quyền cập nhật món ăn này.'}, status=status.HTTP_403_FORBIDDEN)
+
+        is_available = request.data.get('is_available')
+        if is_available is None:
+            return Response({'error': 'Thiếu trường is_available'}, status=status.HTTP_400_BAD_REQUEST)
+
+        food.is_available = is_available
+        food.save()
+
+        return Response({
+            'message': 'Trạng thái món ăn đã được cập nhật.',
+            'is_available': food.is_available
+        })
+
+class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView,generics.UpdateAPIView):
     queryset = Store.objects.filter(is_approved=True).select_related('account') \
         .annotate(followers_count=Count('followers'))  # Thêm số lượng người theo dõi # Thêm select_related
     serializer_class = StoreSerializer
     permission_classes = [permissions.AllowAny]
+
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
+    def update_opening_hours(self, request, pk=None):
+        store = get_object_or_404(Store, pk=pk)
+        new_hours = request.data.get('opening_hours')
+        store.opening_hours = new_hours
+        store.save()
+
+        return Response({
+            "message": "Đã cập nhật thời gian mở cửa",
+            "opening_hours": store.opening_hours
+        })
 
     @action(detail=True, methods=['patch'])
     def approve_store(self, request, pk=None):
@@ -203,6 +234,7 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
             "is_following": is_following,
             "followers_count": store.followers.count()
         })
+
 
     # Cho review(comment + rating)
     @action(detail=True, methods=['get', 'post'], url_path='reviews',
@@ -632,17 +664,29 @@ class HomeView(View):
         return render(request, self.template_name, {'current_user': current_user})
 
 
-class MenuViewSet(viewsets.ViewSet, generics.CreateAPIView):
+class MenuViewSet(viewsets.GenericViewSet,generics.CreateAPIView,generics.ListAPIView):
     queryset = Menu.objects.all()
     serializer_class = MenuSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStoreOwner]
+    permission_classes = [permissions.IsAuthenticated]
 
-    # GET /menus/my-store/ → Lấy menu của cửa hàng hiện tại
-    @action(detail=False, methods=['GET'], url_path='my-store')
+    @action(detail=False, methods=['GET', 'POST'], url_path='my-store',permission_classes=[IsStoreOwner])
     def get_my_store_menus(self, request):
-        menus = Menu.objects.filter(store=request.user.store)
-        serializer = self.get_serializer(menus, many=True)
-        return Response(serializer.data)
+        if request.method == 'GET':
+            menus = Menu.objects.filter(store=request.user.account.store)
+            serializer = self.get_serializer(menus, many=True)
+            return Response(serializer.data)
+
+        elif request.method == 'POST':
+            data = request.data.copy()
+            data['store'] = request.user.account.store.id  # Gán store hiện tại
+
+            serializer = self.get_serializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 logger = logging.getLogger(__name__)

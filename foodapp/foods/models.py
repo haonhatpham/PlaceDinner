@@ -201,6 +201,7 @@ class Follow(BaseModel):
         return f"{self.customer} follows {self.store}"
 
 
+
 class Notification(BaseModel):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='notifications')
     title = models.CharField(max_length=255)

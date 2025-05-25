@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { Text, View, ScrollView } from "react-native";
 import { MyDispatchContext, MyUserContext } from "../../configs/Contexts";
 import MyStyles from "../../styles/MyStyles";
@@ -8,6 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import api, { authApi, endpoints } from "../../configs/Apis";
 import { useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
+import { Alert } from "react-native";
 
 
 
@@ -24,7 +25,10 @@ const Profile = () => {
             const fetchFollowingStores = async () => {
                 try {
                     const token = await AsyncStorage.getItem('token');
-                    if (!token) return;
+                    if (!token) {
+                        Alert.alert('Lỗi', 'Vui lòng đăng nhập lại');
+                        return;
+                    }
                     const res = await authApi(token).get(endpoints['store-following']);
                     setFollowingStores(res.data);
                 } catch (err) {
