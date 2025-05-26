@@ -33,13 +33,18 @@ def notify_followers(sender, instance, created, **kwargs):
 def notify_followers_new_menu(sender, instance, created, **kwargs):
     if created:
         followers = instance.store.followers.all()
-        for user in followers:
+        for follow in followers:
             Notification.objects.create(
-                account=user.account,
+                account=follow.customer,
                 title=f"Menu mới tại {instance.store.name}",
                 message=f"{instance.name} ({instance.get_menu_type_display()}) đã được thêm!",
                 notification_type='NEW_MENU',
                 related_id=instance.id
             )
             # Gọi task nếu bạn có (giống như send_new_dish_notification)
-            send_new_menu_notification.delay(user.email, instance.name, instance.store.name)
+            if follow.customer.user.email:
+                send_new_menu_notification.delay(
+                    follow.customer.user.email,
+                    instance.name,
+                    instance.store.name
+                )
