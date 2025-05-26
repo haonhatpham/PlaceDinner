@@ -3,9 +3,9 @@ import os
 from celery import Celery
 
 # Đặt biến môi trường cho Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tên_dự_án.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'foodapp.settings')
 
-app = Celery('tên_dự_án')
+app = Celery('foodapp')
 
 # Nạp cấu hình từ Django settings, sử dụng namespace 'CELERY'
 app.config_from_object('django.conf:settings', namespace='CELERY')

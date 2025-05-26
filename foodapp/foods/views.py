@@ -11,15 +11,17 @@ from .models import *
 from .permissions import *
 from django.core.mail import send_mail
 from rest_framework.generics import get_object_or_404, RetrieveAPIView, UpdateAPIView
-from django.db.models import Q
 from django.views.generic import View
 from django.contrib.auth import logout
 from django.shortcuts import render, redirect
-from django.db.models import Sum, F, Count
+from django.db.models import Sum, F, Count,Avg,Q,ExpressionWrapper, DecimalField
 from .momo import create_momo_payment
 from django.utils import timezone
 import logging
 from foods import paginators
+from datetime import timedelta
+from decimal import Decimal
+
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -597,40 +599,213 @@ class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView):
         return Response({"message": "Đơn đã giao thành công."})
 
 
-from .dao import get_store_stats
-
-
+from django.db.models.functions import TruncYear, TruncQuarter, TruncMonth,TruncDate
 # Cho Admin Dashboard (Web)
 def admin_stats_view(request):
-    time_unit = request.GET.get("time_unit", "month")
-    store_id = request.GET.get("store_id")
-    stores = Store.objects.all()
+    # Lấy tham số từ request
+    period = request.GET.get('period', 'month')
+    store_id = request.GET.get('store_id')
 
-    stats = get_store_stats(store_id, time_unit) if store_id else {}
+    # Xác định khoảng thời gian
+    now = timezone.now()
+    if period == 'month':
+        start_date = now - timedelta(days=30)
+    elif period == 'quarter':
+        start_date = now - timedelta(days=90)
+    else:  # year
+        start_date = now - timedelta(days=365)
 
-    return render(request, "admin/stats.html", {
-        "stores": stores,
-        "selected_store": store_id,
-        "time_unit": time_unit,
-        "revenue_data": stats.get("revenue", []),
-        "product_data": stats.get("products", [])
-    })
+    # Query cơ bản cho đơn hàng trong khoảng thời gian
+    orders_in_period = Order.objects.filter(created_date__gte=start_date)
+    if store_id:
+        orders_in_period = orders_in_period.filter(store_id=store_id)
+
+    # Query cho các đơn hàng đã hoàn thành hoặc đang giao trong khoảng thời gian
+    completed_or_delivering_orders_in_period = orders_in_period.filter(
+        status__in=[Order.Status.COMPLETED, Order.Status.DELIVERING]
+    )
+
+    # Tính tổng doanh thu từ OrderItem cho các đơn hàng đã hoàn thành/đang giao
+    items_revenue_total = OrderItem.objects.filter(
+        order__in=completed_or_delivering_orders_in_period,
+    ).aggregate(
+        total=Sum(ExpressionWrapper(
+            F('price') * F('quantity'),
+            output_field=DecimalField()
+        ))
+    )['total'] or Decimal('0')
+
+    # Tính phí vận chuyển cho các đơn hàng đã hoàn thành/đang giao
+    shipping_fee_total = completed_or_delivering_orders_in_period.aggregate(
+        total=Sum('shipping_fee')
+    )['total'] or Decimal('0')
+
+    # Tổng doanh thu thực tế
+    total_revenue = items_revenue_total + shipping_fee_total
+
+    # Thống kê tổng quan
+    stats = {
+        'total_orders': orders_in_period.count(),
+        'total_revenue': total_revenue,
+        'average_order_value': total_revenue / completed_or_delivering_orders_in_period.count() if completed_or_delivering_orders_in_period.exists() else 0,
+        'total_foods': Food.objects.filter(store_id=store_id).count() if store_id else Food.objects.count(), # Có thể cần lọc theo active=True nếu cần
+        'total_stores': Store.objects.filter(is_approved=True, active=True).count(),
+        'total_customers': Account.objects.filter(role=Account.Role.CUSTOMER, active=True).count(),
+        'total_pending_stores': Store.objects.filter(is_approved=False, active=True).count(),
+        'total_reviews': Review.objects.filter(created_date__gte=start_date).count(),
+        'average_rating': Review.objects.filter(created_date__gte=start_date).aggregate(avg=Avg('rating'))['avg'] or 0,
+    }
+
+    # Thống kê theo trạng thái đơn hàng
+    order_status_stats = []
+    # Lấy verbose name cho từng status
+    status_verbose_map = dict(Order.Status.choices)
+    for status, verbose_status in Order.Status.choices:
+        status_orders = orders_in_period.filter(status=status)
+        # Doanh thu theo trạng thái (chỉ tính các trạng thái liên quan đến doanh thu nếu cần)
+        status_items_revenue = OrderItem.objects.filter(
+            order__in=status_orders,
+            order__status__in=[Order.Status.COMPLETED, Order.Status.DELIVERING] # Chỉ tính doanh thu cho đơn đã hoàn thành/giao
+        ).aggregate(
+             total=Sum(ExpressionWrapper(
+                F('price') * F('quantity'),
+                output_field=DecimalField()
+            ))
+        )['total'] or Decimal('0')
+
+        status_shipping_fee = status_orders.filter(
+             status__in=[Order.Status.COMPLETED, Order.Status.DELIVERING] # Chỉ tính phí vận chuyển cho đơn đã hoàn thành/giao
+        ).aggregate(
+            total=Sum('shipping_fee')
+        )['total'] or Decimal('0')
+
+        order_status_stats.append({
+            'status': status,
+            'verbose_status': verbose_status, # Thêm verbose status
+            'count': status_orders.count(),
+            'revenue': status_items_revenue + status_shipping_fee # Doanh thu theo trạng thái
+        })
+
+    # Thống kê món ăn bán chạy
+    top_foods = OrderItem.objects.filter(
+        order__in=completed_or_delivering_orders_in_period # Chỉ tính các món trong đơn đã hoàn thành/giao
+    ).values(
+        'food__name', 'food__store__name' # Giữ lại tên cửa hàng để tooltip hiển thị
+    ).annotate(
+        total_sold=Sum('quantity'),
+        revenue=Sum(ExpressionWrapper( # Tính doanh thu cho từng món
+            F('price') * F('quantity'),
+            output_field=DecimalField()
+        ))
+    ).order_by('-total_sold')[:10] # Lấy top 10
+
+    # Thống kê doanh thu theo ngày - Cần nhóm theo ngày
+    daily_revenue_queryset = OrderItem.objects.filter(
+        order__in=completed_or_delivering_orders_in_period
+    ).extra({'order_date': "date(created_date)"}).values('order_date').annotate(
+         items_total=Sum(ExpressionWrapper(
+            F('price') * F('quantity'),
+            output_field=DecimalField()
+        ))
+    ).order_by('order_date')
+
+    # Thêm phí vận chuyển vào doanh thu theo ngày
+    shipping_fee_daily = completed_or_delivering_orders_in_period.extra({'order_date': "date(created_date)"}).values('order_date').annotate(
+        shipping_total=Sum('shipping_fee')
+    ).order_by('order_date')
+
+    # Kết hợp doanh thu từ item và phí vận chuyển theo ngày
+    daily_revenue_dict = {item['order_date']: item['items_total'] for item in daily_revenue_queryset}
+    shipping_fee_daily_dict = {item['order_date']: item['shipping_total'] for item in shipping_fee_daily}
+
+    daily_revenue = []
+    all_dates = sorted(list(set(daily_revenue_dict.keys()) | set(shipping_fee_daily_dict.keys()))) # Lấy tất cả các ngày có dữ liệu
+    for date in all_dates:
+        daily_revenue.append({
+            'date': date,
+            'revenue': (daily_revenue_dict.get(date, Decimal('0')) +
+                        shipping_fee_daily_dict.get(date, Decimal('0'))),
+        })
 
 
-# ==========Testing==========================================================
-class LogoutView(View):
-    def get(self, request):
-        logout(request)
-        return redirect('app:home')
+    # Thống kê cửa hàng - Chỉ lấy các cửa hàng đã duyệt và active
+    # Nếu có store_id được chọn, chỉ lấy cửa hàng đó
+    if store_id:
+         stores_to_list = Store.objects.filter(id=store_id, is_approved=True, active=True)
+    else:
+         stores_to_list = Store.objects.filter(is_approved=True, active=True)
 
 
-class HomeView(View):
-    template_name = 'login/home.html'
+    store_stats = []
+    for store in stores_to_list:
+        store_orders = orders_in_period.filter(store=store)
+        store_completed_or_delivering_orders = store_orders.filter(
+             status__in=[Order.Status.COMPLETED, Order.Status.DELIVERING]
+        )
 
-    def get(self, request):
-        current_user = request.user
-        return render(request, self.template_name, {'current_user': current_user})
+        store_items_revenue = OrderItem.objects.filter(
+            order__in=store_completed_or_delivering_orders
+        ).aggregate(
+             total=Sum(ExpressionWrapper(
+                F('price') * F('quantity'),
+                output_field=DecimalField()
+            ))
+        )['total'] or Decimal('0')
 
+        store_shipping_fee = store_completed_or_delivering_orders.aggregate(
+            total=Sum('shipping_fee')
+        )['total'] or Decimal('0')
+
+        store_total_revenue = store_items_revenue + store_shipping_fee
+
+        store_reviews = Review.objects.filter(store=store, created_date__gte=start_date)
+
+        store_stats.append({
+            'store_name': store.name,
+            'total_orders': store_orders.count(), # Tổng đơn hàng trong khoảng thời gian (bao gồm cả pending...)
+            'total_revenue': store_total_revenue, # Tổng doanh thu từ đơn đã hoàn thành/giao
+            'average_rating': store_reviews.aggregate(avg=Avg('rating'))['avg'] or 0,
+            'total_reviews': store_reviews.count(),
+            'total_foods': store.foods.count(), # Có thể cần lọc theo active=True nếu cần
+            'total_followers': store.followers.count(),
+        })
+
+    # Sắp xếp store_stats theo doanh thu giảm dần cho biểu đồ top cửa hàng
+    store_stats_sorted_by_revenue = sorted(store_stats, key=lambda x: x['total_revenue'], reverse=True)
+
+
+    # Thống kê đánh giá
+    review_stats = Review.objects.filter(
+        created_date__gte=start_date
+    ).values('rating').annotate(
+        count=Count('id')
+    ).order_by('rating') # Sắp xếp theo rating để biểu đồ hiển thị đúng thứ tự sao
+
+    # Chuẩn bị dữ liệu cho biểu đồ đánh giá để đảm bảo có đủ 5 sao ngay cả khi không có đánh giá
+    # Tạo dict ban đầu với count = 0 cho tất cả các rating
+    review_stats_dict = {rating: {'rating': rating, 'count': 0} for rating, _ in Review.RATING_CHOICES}
+    # Cập nhật count từ query result
+    for stat in review_stats:
+        review_stats_dict[stat['rating']]['count'] = stat['count']
+    # Chuyển lại thành list và sắp xếp theo rating
+    review_stats_list = sorted(review_stats_dict.values(), key=lambda x: x['rating'])
+
+
+    context = {
+        'stats': stats,
+        'top_foods': top_foods,
+        'store_stats': store_stats_sorted_by_revenue, # Sử dụng dữ liệu đã sắp xếp cho top cửa hàng
+        'order_status_stats': order_status_stats,
+        'daily_revenue': daily_revenue,
+        'review_stats': review_stats_list, # Sử dụng dữ liệu đã chuẩn bị cho biểu đồ đánh giá
+        'period': period,
+        'selected_store': store_id,
+        'stores': Store.objects.filter(is_approved=True, active=True), # Danh sách cửa hàng cho dropdown filter
+        'order_statuses': dict(Order.Status.choices), # Giữ lại nếu cần dùng ở chỗ khác
+        'payment_statuses': dict(Payment.Status.choices), # Giữ lại nếu cần dùng ở chỗ khác
+    }
+
+    return render(request, 'admin/stats.html', context)
 
 class MenuViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = Menu.objects.all()

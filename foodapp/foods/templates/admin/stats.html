@@ -1,70 +1,441 @@
-<!-- templates/admin/stats.html -->
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.css">
+<style>
+    .stats-card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        transition: transform 0.2s;
+    }
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    .stats-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .stats-label {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    .chart-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: -10px;
+    }
+    .chart-col {
+        flex: 0 0 50%;
+        padding: 10px;
+    }
+    @media (max-width: 768px) {
+        .chart-col {
+            flex: 0 0 100%;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1>Thống kê Doanh thu</h1>
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Thống kê hệ thống</h1>
 
-<form method="GET">
-    <select name="store_id">
-        <option value="">Tất cả cửa hàng</option>
-        {% for store in stores %}
-        <option value="{{ store.id }}" {% if store.id == selected_store|add:0 %}selected{% endif %}>
-            {{ store.name }}
-        </option>
-        {% endfor %}
-    </select>
+    <!-- Bộ lọc -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Khoảng thời gian</label>
+                    <select name="period" class="form-select" onchange="this.form.submit()">
+                        <option value="month" {% if period == 'month' %}selected{% endif %}>Tháng này</option>
+                        <option value="quarter" {% if period == 'quarter' %}selected{% endif %}>Quý này</option>
+                        <option value="year" {% if period == 'year' %}selected{% endif %}>Năm nay</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Cửa hàng</label>
+                    <select name="store_id" class="form-select" onchange="this.form.submit()">
+                        <option value="">Tất cả cửa hàng</option>
+                        {% for store in stores %}
+                        <option value="{{ store.id }}" {% if selected_store == store.id|stringformat:"i" %}selected{% endif %}>
+                            {{ store.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <select name="time_unit">
-        <option value="month" {% if time_unit == "month" %}selected{% endif %}>Theo Tháng</option>
-        <option value="quarter" {% if time_unit == "quarter" %}selected{% endif %}>Theo Quý</option>
-        <option value="year" {% if time_unit == "year" %}selected{% endif %}>Theo Năm</option>
-    </select>
+    <!-- Thống kê tổng quan -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.total_orders }}</div>
+                    <div class="stats-label">Tổng đơn hàng</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.total_revenue|floatformat:0 }}đ</div>
+                    <div class="stats-label">Doanh thu</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.total_stores }}</div>
+                    <div class="stats-label">Cửa hàng đã duyệt</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.total_pending_stores }}</div>
+                    <div class="stats-label">Cửa hàng chờ duyệt</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <button type="submit">Xem</button>
-</form>
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.total_customers }}</div>
+                    <div class="stats-label">Khách hàng</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.total_foods }}</div>
+                    <div class="stats-label">Món ăn</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.total_reviews }}</div>
+                    <div class="stats-label">Đánh giá</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="stats-value">{{ stats.average_rating|floatformat:1 }}/5</div>
+                    <div class="stats-label">Đánh giá trung bình</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<canvas id="revenueChart" width="800" height="400"></canvas>
+    <!-- Biểu đồ thống kê -->
+    <div class="chart-row mt-4">
+        <!-- Biểu đồ doanh thu -->
+        <div class="chart-col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Doanh thu theo ngày</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  const ctx = document.getElementById('revenueChart').getContext('2d');
-  // Tạo mảng labels và data từ revenue_data
-  const labels = [
-    {% for item in revenue_data %}
-        "{{ item.period|date:'Y-m' }}",
-    {% endfor %}
-  ];
-    const dataPoints = [
-    {% for item in revenue_data %}
-        {{ item.total_revenue|default:0 }},
-    {% endfor %}
-  ];
+        <!-- Biểu đồ trạng thái đơn hàng -->
+        <div class="chart-col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Phân bố trạng thái đơn hàng</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="orderStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-  const data = {
-    labels: labels,
-    datasets: [{
-      label: 'Doanh thu',
-      data: dataPoints,
-      borderColor: '#4CAF50',
-      fill: false
-    }]
-  };
-  new Chart(ctx, {
-    type: 'line',
-    data: data,
-    options: {
-      responsive: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: function(value) {
-              return value.toLocaleString('vi-VN') + '₫';
-            }
-          }
+        <!-- Biểu đồ đánh giá -->
+        <div class="chart-col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Phân bố đánh giá</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="ratingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Biểu đồ top cửa hàng -->
+        <div class="chart-col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Top cửa hàng theo doanh thu</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="topStoresChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top món ăn bán chạy -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Top món ăn bán chạy</h5>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="topFoodsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    {# Bắt đầu phần JavaScript được đặt trong content block #}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script>
+    console.log("JavaScript for charts is running."); // Dòng console log để kiểm tra
+
+    // Chờ cho DOM được tải hoàn chỉnh trước khi khởi tạo biểu đồ
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Cấu hình chung cho Chart.js
+        Chart.defaults.font.family = "'Roboto', 'Helvetica Neue', 'Arial', sans-serif";
+        Chart.defaults.font.size = 12;
+        Chart.defaults.plugins.legend.position = 'bottom';
+
+        // Biểu đồ doanh thu
+        const revenueCtx = document.getElementById('revenueChart');
+        if (revenueCtx) { // Kiểm tra xem canvas có tồn tại không
+            const revenueData = {
+                labels: [{% for item in daily_revenue %}'{{ item.date|date:"d/m" }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Doanh thu',
+                    data: [{% for item in daily_revenue %}{{ item.revenue }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            };
+            new Chart(revenueCtx, {
+                type: 'line',
+                data: revenueData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw.toLocaleString('vi-VN') + 'đ';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN') + 'đ';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
-      }
-    }
-  });
-</script>
+
+
+        // Biểu đồ trạng thái đơn hàng
+        const orderStatusCtx = document.getElementById('orderStatusChart');
+        if (orderStatusCtx) { // Kiểm tra xem canvas có tồn tại không
+            const orderStatusData = {
+                labels: [{% for stat in order_status_stats %}'{{ stat.verbose_status }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for stat in order_status_stats %}{{ stat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: [
+                        'rgba(255, 193, 7, 0.8)',   // Pending
+                        'rgba(23, 162, 184, 0.8)',  // Confirmed
+                        'rgba(40, 167, 69, 0.8)',   // Delivering
+                        'rgba(40, 167, 69, 0.8)',   // Completed
+                        'rgba(220, 53, 69, 0.8)',   // Cancelled
+                    ],
+                    borderWidth: 1
+                }]
+            };
+            new Chart(orderStatusCtx, {
+                type: 'doughnut',
+                data: orderStatusData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // Biểu đồ đánh giá
+        const ratingCtx = document.getElementById('ratingChart');
+        if (ratingCtx) { // Kiểm tra xem canvas có tồn tại không
+            const ratingData = {
+                labels: [{% for stat in review_stats %}'{{ stat.rating }} sao'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Số lượng đánh giá',
+                    data: [{% for stat in review_stats %}{{ stat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(255, 159, 64, 0.8)',
+                        'rgba(255, 205, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                    ],
+                    borderWidth: 1
+                }]
+            };
+            new Chart(ratingCtx, {
+                type: 'bar',
+                data: ratingData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Biểu đồ top cửa hàng
+        const topStoresCtx = document.getElementById('topStoresChart');
+         if (topStoresCtx) { // Kiểm tra xem canvas có tồn tại không
+            const topStoresData = {
+                labels: [{% for store in store_stats|slice:":5" %}'{{ store.store_name }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Doanh thu',
+                    data: [{% for store in store_stats|slice:":5" %}{{ store.total_revenue }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderWidth: 1
+                }]
+            };
+            new Chart(topStoresCtx, {
+                type: 'bar',
+                data: topStoresData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw.toLocaleString('vi-VN') + 'đ';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN') + 'đ';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Biểu đồ top món ăn
+        const topFoodsCtx = document.getElementById('topFoodsChart');
+        if (topFoodsCtx) { // Kiểm tra xem canvas có tồn tại không
+            const topFoodsData = {
+                labels: [{% for food in top_foods|slice:":10" %}'{{ food.food__name }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Số lượng đã bán',
+                    data: [{% for food in top_foods|slice:":10" %}{{ food.total_sold }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                    borderWidth: 1
+                }]
+            };
+            new Chart(topFoodsCtx, {
+                type: 'bar',
+                data: topFoodsData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const food = topFoodsData.labels[context.dataIndex];
+                                    const sold = context.raw;
+                                    const revenue = [{% for food in top_foods|slice:":10" %}{{ food.revenue }}{% if not forloop.last %}, {% endif %}{% endfor %}][context.dataIndex];
+                                    return [
+                                        'Số lượng: ' + sold,
+                                        'Doanh thu: ' + revenue.toLocaleString('vi-VN') + 'đ'
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+    }); // <-- Đóng ngoặc cho addEventListener
+
+    </script>
+    {# Kết thúc phần JavaScript #}
+
 {% endblock %}
