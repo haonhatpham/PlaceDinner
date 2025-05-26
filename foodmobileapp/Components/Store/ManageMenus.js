@@ -148,7 +148,6 @@ const ManageMenus = () => {
                     ))}
                 </View>
             </ScrollView>
-
             <FAB
                 style={styles.fab}
                 icon="content-save"
