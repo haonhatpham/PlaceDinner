@@ -17,7 +17,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 const Home = ({ navigation }) => {
   // States cho Featured Restaurants
   const [featuredRestaurants, setFeaturedRestaurants] = useState([]);
-  
   // States cho Recommended Dishes với pagination
   const [dishes, setDishes] = useState([]);
   const [loading, setLoading] = useState(false);

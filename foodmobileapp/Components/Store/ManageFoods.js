@@ -200,11 +200,22 @@ const ManageFoods = () => {
             const token = await AsyncStorage.getItem('token');
             const formData = new FormData();
             
+            console.log('Dữ liệu món ăn trước khi gửi:', {
+                name: food.name,
+                price: food.price,
+                description: food.description,
+                category: food.category,
+                meal_time: food.meal_time,
+                is_available: food.is_available,
+                active: true
+            });
+            
             formData.append('name', food.name);
             formData.append('description', food.description);
             formData.append('price', food.price);
             formData.append('meal_time', food.meal_time);
             formData.append('is_available', food.is_available);
+            formData.append('active', true);
             if (food.category) formData.append('category', food.category);
             if (food.food_image) formData.append('image', food.food_image);
             if (food.available_from) formData.append('available_from', food.available_from);
@@ -232,6 +243,9 @@ const ManageFoods = () => {
                     },
                 });
             }
+
+            
+            console.log('Response sau khi thêm món:', response.data);
             
             setVisible(false);
             setFood({

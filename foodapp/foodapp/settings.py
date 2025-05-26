@@ -105,7 +105,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': 'hieu',
+        'PASSWORD': '1234',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -165,7 +165,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB, có thể tăng nữa n�
 
 # Cấu hình Redis làm broker cho Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'django-db'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 # Cấu hình Celery
 CELERY_ACCEPT_CONTENT = ['json']
@@ -177,11 +177,10 @@ CLIENT_ID_Hao= 'GYMVhxDK017oLOQZSalsKiQGs1DZBD4rLDe5ICf6'
 CLIENT_SECRET_Hao="SGIlxqCthtXmDNfZSagQjq3j5nIZcvgLIAZpT3cs5nCD03ieVNCW1QsK0ti0AJIWnysESlqRBleReivXqSCFxytURpVB6xqS5RildGoYH1MTqSHqTKjbtXZJc6Tx9NI9"
 
 
-# Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # hoặc SMTP server của bạn
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your-email@gmail.com'  # Email của bạn
-EMAIL_HOST_PASSWORD = 'your-app-password'  # Mật khẩu ứng dụng nếu dùng Gmail
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_HOST_USER = 'thongbaocuahang@gmail.com'
+EMAIL_HOST_PASSWORD = 'awoq uxis jtdb dyca'
+DEFAULT_FROM_EMAIL = 'thongbaocuahang@gmail.com'

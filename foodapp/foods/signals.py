@@ -6,25 +6,26 @@ from .tasks import send_new_dish_notification,send_new_menu_notification
 
 
 @receiver(post_save, sender=Food)
-# Dùng decorator @receiver để “lắng nghe” signal post_save phát ra từ model Food.
-# Khi có một Food mới được lưu, Django sẽ gọi hàm ngay bên dưới.
 def notify_followers(sender, instance, created, **kwargs):
-    # Hàm xử lý được gọi khi signal post_save được kích hoạt.
     if created:
-        # Lấy tất cả user đang theo dõi cửa hàng của món ăn này
         followers = instance.store.followers.all()
-        for user in followers:
+        for follow in followers:
             # Lưu thông báo vào database
             Notification.objects.create(
-                account=user,
+                account=follow.customer,
                 title=f"Món mới tại {instance.store.name}",
                 message=f"{instance.name} - {instance.price}",
                 notification_type='NEW_FOOD',
                 related_id=instance.id
             )
 
-            send_new_dish_notification.delay(user.email, instance.name, instance.store.name)
-            # Gọi Celery task bất đồng bộ:  .delay(...) đẩy job vào queue, worker sẽ lấy ra xử lý gửi email/SMS.
+            # Gửi email thông báo
+            if follow.customer.user.email:
+                send_new_dish_notification.delay(
+                    follow.customer.user.email,
+                    instance.name,
+                    instance.store.name
+                )
 
 
 # Menu mới
@@ -34,7 +35,7 @@ def notify_followers_new_menu(sender, instance, created, **kwargs):
         followers = instance.store.followers.all()
         for user in followers:
             Notification.objects.create(
-                account=user,
+                account=user.account,
                 title=f"Menu mới tại {instance.store.name}",
                 message=f"{instance.name} ({instance.get_menu_type_display()}) đã được thêm!",
                 notification_type='NEW_MENU',
