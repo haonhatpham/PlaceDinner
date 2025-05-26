@@ -13,6 +13,7 @@ import Profile from "./Components/User/Profile";
 import SearchScreen from "./Components/Search/SearchScreen";
 import DishDetail from "./Components/Food/DishDetail";
 import ManageFoods from "./Components/Store/ManageFoods";
+import ManageMenus from "./Components/Store/ManageMenus";
 import StoreOrders from "./Components/Store/StoreOrders";
 import StoreDetail from "./Components/Store/StoreDetail";
 import RevenueStats from "./Components/Statistics/RevenueStats";
@@ -33,6 +34,7 @@ const HomeStack = () => (
 const StoreStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="ManageFoods" component={ManageFoods} options={{ title: "Quản lý món ăn" }} />
+    <Stack.Screen name="ManageMenus" component={ManageMenus} options={{ title: "Quản lý Menu" }} />
     <Stack.Screen name="StoreOrders" component={StoreOrders} options={{ title: "Quản lý đơn hàng" }} />
     <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
   </Stack.Navigator>

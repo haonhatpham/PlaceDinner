@@ -8,8 +8,26 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+
+// Thêm constants cho thời gian mặc định của các bữa
+const MEAL_TIME_RANGES = {
+    BREAKFAST: { start: '06:00', end: '10:00' },
+    LUNCH: { start: '11:00', end: '14:00' },
+    DINNER: { start: '17:00', end: '21:00' },
+    ANYTIME: { start: '00:00', end: '23:59' }
+};
+
+// Map chính xác với backend MealTime choices
+const MEAL_TIME_CHOICES = [
+    { value: 'BREAKFAST', label: 'Bữa sáng' },
+    { value: 'LUNCH', label: 'Bữa trưa' },
+    { value: 'DINNER', label: 'Bữa tối' },
+    { value: 'ANYTIME', label: 'Cả ngày' }
+];
 
 const ManageFoods = () => {
+    const navigation = useNavigation();
     const user = useContext(MyUserContext);
     console.log('Thông tin user:', user);
     const [foods, setFoods] = useState([]);
@@ -23,12 +41,82 @@ const ManageFoods = () => {
         image: null,
         food_image: null,
         is_available: true,
-        meal_time: 'ALL',
-        selling_hours: {
-            start: '00:00',
-            end: '23:59'
-        }
+        meal_time: 'ANYTIME',
+        available_from: null,  // Thay đổi để khớp với backend (có thể null)
+        available_to: null     // Thay đổi để khớp với backend (có thể null)
     });
+
+    const validateTimeFormat = (time) => {
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        return timeRegex.test(time);
+    };
+
+    const isTimeInRange = (time, startRange, endRange) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        const [startHours, startMinutes] = startRange.split(':').map(Number);
+        const [endHours, endMinutes] = endRange.split(':').map(Number);
+        
+        const currentTimeMinutes = hours * 60 + minutes;
+        const rangeStartMinutes = startHours * 60 + startMinutes;
+        const rangeEndMinutes = endHours * 60 + endMinutes;
+        
+        return currentTimeMinutes >= rangeStartMinutes && currentTimeMinutes <= rangeEndMinutes;
+    };
+
+    const handleMealTimeChange = (value) => {
+        try {
+            if (!MEAL_TIME_RANGES[value]) {
+                console.error('Invalid meal time selected:', value);
+                value = 'ANYTIME';
+            }
+
+            const timeRange = MEAL_TIME_RANGES[value];
+            setFood({
+                ...food,
+                meal_time: value,
+                available_from: timeRange.start,
+                available_to: timeRange.end
+            });
+        } catch (error) {
+            console.error('Error in handleMealTimeChange:', error);
+            // Fallback to safe default values
+            setFood({
+                ...food,
+                meal_time: 'ANYTIME',
+                available_from: MEAL_TIME_RANGES.ANYTIME.start,
+                available_to: MEAL_TIME_RANGES.ANYTIME.end
+            });
+        }
+    };
+
+    const handleTimeChange = (type, value) => {
+        try {
+            if (!validateTimeFormat(value)) {
+                return;
+            }
+
+            const timeRange = MEAL_TIME_RANGES[food.meal_time];
+            if (!timeRange) {
+                console.error('Invalid meal time:', food.meal_time);
+                return;
+            }
+
+            if (!isTimeInRange(value, timeRange.start, timeRange.end)) {
+                Alert.alert(
+                    'Thời gian không hợp lệ',
+                    `${getMealTimeLabel(food.meal_time)} phải nằm trong khoảng ${timeRange.start} - ${timeRange.end}`
+                );
+                return;
+            }
+
+            setFood({
+                ...food,
+                [type]: value
+            });
+        } catch (error) {
+            console.error('Error in handleTimeChange:', error);
+        }
+    };
 
     useEffect(() => {
         if (user && user.store) {
@@ -72,6 +160,40 @@ const ManageFoods = () => {
         }
     };
 
+    const getMealTimeLabel = (value) => {
+        const found = MEAL_TIME_CHOICES.find(choice => choice.value === value);
+        return found ? found.label : 'Cả ngày';
+    };
+
+    const handleEditFood = (foodToEdit) => {
+        try {
+            // Đảm bảo meal_time là một trong các giá trị hợp lệ
+            const validMealTime = MEAL_TIME_CHOICES.some(choice => choice.value === foodToEdit.meal_time)
+                ? foodToEdit.meal_time
+                : 'ANYTIME';
+
+            setFood({
+                ...foodToEdit,
+                food_image: null,
+                meal_time: validMealTime,
+                // Giữ nguyên giá trị từ backend nếu có, nếu không thì dùng mặc định
+                available_from: foodToEdit.available_from || MEAL_TIME_RANGES[validMealTime].start,
+                available_to: foodToEdit.available_to || MEAL_TIME_RANGES[validMealTime].end
+            });
+            setVisible(true);
+        } catch (error) {
+            console.error('Error in handleEditFood:', error);
+            setFood({
+                ...foodToEdit,
+                food_image: null,
+                meal_time: 'ANYTIME',
+                available_from: null,
+                available_to: null
+            });
+            setVisible(true);
+        }
+    };
+
     const handleAddFood = async () => {
         try {
             setLoading(true);
@@ -91,13 +213,13 @@ const ManageFoods = () => {
             formData.append('name', food.name);
             formData.append('description', food.description);
             formData.append('price', food.price);
-            formData.append('meal_time', food.meal_time === 'ALL' ? 'ANYTIME' : food.meal_time);
+            formData.append('meal_time', food.meal_time);
             formData.append('is_available', food.is_available);
             formData.append('active', true);
             if (food.category) formData.append('category', food.category);
             if (food.food_image) formData.append('image', food.food_image);
-            formData.append('available_from', food.selling_hours.start);
-            formData.append('available_to', food.selling_hours.end);
+            if (food.available_from) formData.append('available_from', food.available_from);
+            if (food.available_to) formData.append('available_to', food.available_to);
             
             if (user && user.store) {
                 formData.append('store', user.store.id);
@@ -106,21 +228,46 @@ const ManageFoods = () => {
                 return;
             }
 
-            const response = await authApi(token).post(endpoints['store-foods'], formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            if (food.id) {
+                // Nếu có id nghĩa là đang sửa món ăn
+                await authApi(token).patch(endpoints['food_detail'](food.id), formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+            } else {
+                // Thêm món ăn mới
+                await authApi(token).post(endpoints['store-foods'], formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+            }
+
             
             console.log('Response sau khi thêm món:', response.data);
             
             setVisible(false);
+            setFood({
+                name: '',
+                price: '',
+                description: '',
+                category: '',
+                image: null,
+                food_image: null,
+                is_available: true,
+                meal_time: 'ANYTIME',
+                available_from: null,
+                available_to: null
+            });
             loadFoods();
         } catch (error) {
             if (error.response) {
-                console.log('Lỗi thêm món:', error.response.data);
+                console.log('Lỗi:', error.response.data);
+                Alert.alert('Lỗi', 'Không thể lưu món ăn. Vui lòng thử lại.');
             } else {
-                console.log('Lỗi thêm món:', error);
+                console.log('Lỗi:', error);
+                Alert.alert('Lỗi', 'Đã có lỗi xảy ra. Vui lòng thử lại.');
             }
         } finally {
             setLoading(false);
@@ -129,7 +276,8 @@ const ManageFoods = () => {
 
     const handleToggleAvailability = async (foodId, currentStatus) => {
         try {
-            await authApi(token).patch(endpoints['food_detail'](foodId), {
+            const token = await AsyncStorage.getItem('token');
+            await authApi(token).patch(endpoints['update-food-availability'](foodId), {
                 is_available: !currentStatus
             });
             loadFoods();
@@ -138,21 +286,31 @@ const ManageFoods = () => {
         }
     };
 
-    const getMealTimeLabel = (mealTime) => {
-        switch (mealTime) {
-            case 'BREAKFAST': return 'Bữa sáng';
-            case 'LUNCH': return 'Bữa trưa';
-            case 'DINNER': return 'Bữa tối';
-            case 'ALL': return 'Cả ngày';
-            default: return 'Không xác định';
+    const handleDeleteFood = async (foodId) => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            await authApi(token).delete(endpoints['food_detail'](foodId));
+            loadFoods();
+        } catch (error) {
+            console.error('Lỗi xóa món:', error);
         }
     };
 
     return (
         <View style={styles.container}>
-            <ScrollView>
+            <View style={styles.header}>
                 <Text style={MyStyles.title}>Quản lý món ăn</Text>
-                
+                <Button 
+                    mode="contained" 
+                    icon="menu" 
+                    onPress={() => navigation.navigate('ManageMenus')}
+                    style={styles.menuButton}
+                >
+                    Quản lý Menu
+                </Button>
+            </View>
+            
+            <ScrollView>
                 {foods.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <Text style={styles.emptyText}>Cửa hàng chưa có món nào</Text>
@@ -181,9 +339,11 @@ const ManageFoods = () => {
                                         {food.is_available ? 'Còn hàng' : 'Hết hàng'}
                                     </Chip>
                                 </View>
-                                <Text style={styles.timeRange}>
-                                    Giờ bán: {food.selling_hours?.start} - {food.selling_hours?.end}
-                                </Text>
+                                {(food.available_from && food.available_to) && (
+                                    <Text style={styles.timeRange}>
+                                        Giờ bán: {food.available_from} - {food.available_to}
+                                    </Text>
+                                )}
                             </Card.Content>
                             <Card.Actions>
                                 <Button onPress={() => handleEditFood(food)}>Sửa</Button>
@@ -198,8 +358,22 @@ const ManageFoods = () => {
             </ScrollView>
 
             <Portal>
-                <Dialog visible={visible} onDismiss={() => setVisible(false)}>
-                    <Dialog.Title>Thêm món ăn mới</Dialog.Title>
+                <Dialog visible={visible} onDismiss={() => {
+                    setVisible(false);
+                    setFood({
+                        name: '',
+                        price: '',
+                        description: '',
+                        category: '',
+                        image: null,
+                        food_image: null,
+                        is_available: true,
+                        meal_time: 'ANYTIME',
+                        available_from: null,
+                        available_to: null
+                    });
+                }}>
+                    <Dialog.Title>{food.id ? 'Sửa món ăn' : 'Thêm món ăn mới'}</Dialog.Title>
                     <Dialog.Content style={{padding: 0}}>
                         <ScrollView 
                             style={{maxHeight: 400, paddingHorizontal: 24, paddingTop: 8}} 
@@ -256,37 +430,37 @@ const ManageFoods = () => {
                             <Text style={styles.label}>Thời gian bán</Text>
                             <Picker
                                 selectedValue={food.meal_time}
-                                onValueChange={(value) => setFood({...food, meal_time: value})}
+                                onValueChange={handleMealTimeChange}
                                 style={styles.picker}
                             >
-                                <Picker.Item label="Cả ngày" value="ALL" />
-                                <Picker.Item label="Bữa sáng" value="BREAKFAST" />
-                                <Picker.Item label="Bữa trưa" value="LUNCH" />
-                                <Picker.Item label="Bữa tối" value="DINNER" />
+                                {MEAL_TIME_CHOICES.map(choice => (
+                                    <Picker.Item 
+                                        key={choice.value} 
+                                        label={choice.label} 
+                                        value={choice.value} 
+                                    />
+                                ))}
                             </Picker>
 
                             <View style={styles.timeInputContainer}>
                                 <TextInput
                                     label="Giờ bắt đầu"
-                                    value={food.selling_hours.start}
-                                    onChangeText={text => setFood({
-                                        ...food,
-                                        selling_hours: {...food.selling_hours, start: text}
-                                    })}
+                                    value={food.available_from || ''}
+                                    onChangeText={text => handleTimeChange('available_from', text)}
                                     style={[styles.input, styles.timeInput]}
                                     placeholder="HH:mm"
                                 />
                                 <TextInput
                                     label="Giờ kết thúc"
-                                    value={food.selling_hours.end}
-                                    onChangeText={text => setFood({
-                                        ...food,
-                                        selling_hours: {...food.selling_hours, end: text}
-                                    })}
+                                    value={food.available_to || ''}
+                                    onChangeText={text => handleTimeChange('available_to', text)}
                                     style={[styles.input, styles.timeInput]}
                                     placeholder="HH:mm"
                                 />
                             </View>
+                            <HelperText type="info">
+                                {`${getMealTimeLabel(food.meal_time)}: ${MEAL_TIME_RANGES[food.meal_time].start} - ${MEAL_TIME_RANGES[food.meal_time].end}`}
+                            </HelperText>
 
                             <View style={styles.switchContainer}>
                                 <Text>Còn hàng</Text>
@@ -299,7 +473,9 @@ const ManageFoods = () => {
                     </Dialog.Content>
                     <Dialog.Actions>
                         <Button onPress={() => setVisible(false)}>Hủy</Button>
-                        <Button onPress={handleAddFood} loading={loading}>Thêm</Button>
+                        <Button onPress={handleAddFood} loading={loading}>
+                            {food.id ? 'Lưu' : 'Thêm'}
+                        </Button>
                     </Dialog.Actions>
                 </Dialog>
             </Portal>
@@ -317,6 +493,15 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 16,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    menuButton: {
+        marginLeft: 16,
     },
     foodCard: {
         marginBottom: 16,

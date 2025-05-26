@@ -11,7 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Divider, RadioButton } from 'react-native-paper';
+import { Button, Divider, RadioButton, Chip, Card } from 'react-native-paper';
 import { authApi, endpoints } from '../../configs/Apis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MyUserContext } from '../../configs/Contexts';
@@ -34,6 +34,7 @@ const OrderScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [orderNote, setOrderNote] = useState('');
+  const [currentOrder, setCurrentOrder] = useState(order);
   
   // Context user
   const user = useContext(MyUserContext);
@@ -49,7 +50,7 @@ const OrderScreen = ({ route, navigation }) => {
   // Tính tổng tiền đơn hàng
   const calculateTotal = () => {
     if (isExistingOrder) {
-      return order.total_amount || 0;
+      return currentOrder.total_amount || 0;
     }
     
     return orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -219,6 +220,104 @@ const OrderScreen = ({ route, navigation }) => {
     }
   };
 
+  // Xử lý xác nhận đơn hàng
+  const handleConfirmOrder = async () => {
+    if (!user || !currentOrder) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Thông báo', 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!');
+        return;
+      }
+
+      setLoading(true);
+      await authApi(token).post(endpoints['confirm-order'](currentOrder.id));
+      
+      // Cập nhật trạng thái đơn hàng trong state
+      setCurrentOrder({
+        ...currentOrder,
+        status: 'CONFIRMED'
+      });
+      
+      Alert.alert('Thành công', 'Đã xác nhận đơn hàng');
+    } catch (error) {
+      console.error('Lỗi xác nhận đơn hàng:', error);
+      Alert.alert('Lỗi', 'Không thể xác nhận đơn hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Xử lý ghi nhận giao hàng
+  const handleDeliverOrder = async () => {
+    if (!user || !currentOrder) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Thông báo', 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!');
+        return;
+      }
+
+      setLoading(true);
+      await authApi(token).post(endpoints['deliver-order'](currentOrder.id));
+      
+      // Cập nhật trạng thái đơn hàng trong state
+      setCurrentOrder({
+        ...currentOrder,
+        status: 'DELIVERED'
+      });
+      
+      Alert.alert('Thành công', 'Đã ghi nhận giao hàng');
+    } catch (error) {
+      console.error('Lỗi ghi nhận giao hàng:', error);
+      Alert.alert('Lỗi', 'Không thể ghi nhận giao hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hiển thị trạng thái đơn hàng
+  const getStatusChip = (status) => {
+    let color = '#666';
+    let icon = 'clock';
+    let label = 'Không xác định';
+    
+    switch (status) {
+      case 'PENDING':
+        color = '#FFA000';
+        icon = 'clock-outline';
+        label = 'Chờ xác nhận';
+        break;
+      case 'CONFIRMED':
+        color = '#2196F3';
+        icon = 'check-circle-outline';
+        label = 'Đã xác nhận';
+        break;
+      case 'DELIVERED':
+        color = '#4CAF50';
+        icon = 'truck-check';
+        label = 'Đã giao hàng';
+        break;
+      case 'CANCELLED':
+        color = '#F44336';
+        icon = 'close-circle-outline';
+        label = 'Đã hủy';
+        break;
+    }
+
+    return (
+      <Chip
+        icon={icon}
+        style={[styles.statusChip, { backgroundColor: color }]}
+        textStyle={{ color: '#fff' }}
+      >
+        {label}
+      </Chip>
+    );
+  };
+
   // Render danh sách món ăn trong đơn
   const renderOrderItems = () => {
     const items = isExistingOrder ? (order.order_items || []) : orderItems;
@@ -259,108 +358,69 @@ const OrderScreen = ({ route, navigation }) => {
 
   // Render thông tin đơn hàng đã tạo
   const renderExistingOrder = () => {
-    if (!order) return null;
+    if (!currentOrder) return null;
 
     return (
-      <ScrollView>
-        <View style={styles.orderSection}>
-          <Text style={styles.sectionTitle}>Thông tin đơn hàng</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Mã đơn:</Text>
-            <Text style={styles.infoValue}>#{order.id}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Trạng thái:</Text>
-            <Text style={[styles.infoValue, styles.statusText]}>{order.status}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Ngày đặt:</Text>
-            <Text style={styles.infoValue}>
-              {new Date(order.created_date).toLocaleString('vi-VN')}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Địa chỉ:</Text>
-            <Text style={styles.infoValue}>{order.delivery_address}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Số điện thoại:</Text>
-            <Text style={styles.infoValue}>{order.contact_phone}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Phương thức giao hàng:</Text>
-            <Text style={styles.infoValue}>
-              {order.delivery_method === 'delivery' ? 'Giao hàng' : 'Tự đến lấy'}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Phương thức thanh toán:</Text>
-            <Text style={styles.infoValue}>
-              {order.payment_method === 'cash' ? 'Tiền mặt' : order.payment_method}
-            </Text>
-          </View>
-          {order.note && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Ghi chú:</Text>
-              <Text style={styles.infoValue}>{order.note}</Text>
-            </View>
-          )}
+      <ScrollView style={styles.container}>
+        <View style={styles.orderHeader}>
+          <Text style={styles.orderId}>Đơn hàng #{currentOrder.id}</Text>
+          {getStatusChip(currentOrder.status)}
         </View>
 
-        <Divider style={styles.divider} />
-
         <View style={styles.orderSection}>
+          <Text style={styles.sectionTitle}>Thông tin giao hàng</Text>
+          <Text style={styles.infoText}>Người nhận: {currentOrder.customer_name}</Text>
+          <Text style={styles.infoText}>Số điện thoại: {currentOrder.customer_phone}</Text>
+          <Text style={styles.infoText}>Địa chỉ: {currentOrder.delivery_address}</Text>
+          
+          <Divider style={styles.divider} />
+          
           <Text style={styles.sectionTitle}>Chi tiết đơn hàng</Text>
-          {renderOrderItems()}
-        </View>
-
-        <Divider style={styles.divider} />
-
-        <View style={styles.orderSection}>
-          <Text style={styles.sectionTitle}>Tổng thanh toán</Text>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Tổng tiền món ăn:</Text>
-            <Text style={styles.totalValue}>
-              {order.subtotal?.toLocaleString('vi-VN') || calculateTotal().toLocaleString('vi-VN')}đ
+          {currentOrder.items?.map((item, index) => (
+            <View key={index} style={styles.orderItem}>
+              <Text style={styles.itemName}>{item.food_name}</Text>
+              <Text style={styles.itemQuantity}>x{item.quantity}</Text>
+              <Text style={styles.itemPrice}>
+                {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+              </Text>
+            </View>
+          ))}
+          
+          <Divider style={styles.divider} />
+          
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalLabel}>Tổng cộng:</Text>
+            <Text style={styles.totalAmount}>
+              {calculateTotal().toLocaleString('vi-VN')}đ
             </Text>
           </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Phí vận chuyển:</Text>
-            <Text style={styles.totalValue}>{order.delivery_fee?.toLocaleString('vi-VN') || '0'}đ</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Tổng cộng:</Text>
-            <Text style={styles.grandTotal}>{order.total_amount?.toLocaleString('vi-VN')}đ</Text>
-          </View>
         </View>
 
-        {/* Hiển thị phần thanh toán nếu đơn hàng chưa thanh toán */}
-        {order.status === 'pending' && (
-          <>
-            <Divider style={styles.divider} />
-            <View style={styles.orderSection}>
-              <Text style={styles.sectionTitle}>Thanh toán</Text>
-              <RadioButton.Group
-                onValueChange={value => setPaymentMethod(value)}
-                value={paymentMethod}
-              >
-                <RadioButton.Item label="Tiền mặt khi nhận hàng" value="cash" />
-                <RadioButton.Item label="PayPal" value="paypal" />
-                <RadioButton.Item label="Momo" value="momo" />
-                <RadioButton.Item label="ZaloPay" value="zalopay" />
-              </RadioButton.Group>
-
+        {/* Hiển thị nút xác nhận và giao hàng cho chủ cửa hàng */}
+        {user?.role === 'Chủ cửa hàng' && (
+          <View style={styles.actionButtons}>
+            {currentOrder.status === 'PENDING' && (
               <Button
                 mode="contained"
-                onPress={handlePayment}
-                style={styles.payButton}
+                onPress={handleConfirmOrder}
                 loading={loading}
-                disabled={loading}
+                style={styles.actionButton}
               >
-                Thanh toán ngay
+                Xác nhận đơn hàng
               </Button>
-            </View>
-          </>
+            )}
+            
+            {currentOrder.status === 'CONFIRMED' && (
+              <Button
+                mode="contained"
+                onPress={handleDeliverOrder}
+                loading={loading}
+                style={styles.actionButton}
+              >
+                Ghi nhận giao hàng
+              </Button>
+            )}
+          </View>
         )}
       </ScrollView>
     );
@@ -588,6 +648,36 @@ const styles = StyleSheet.create({
   payButton: {
     marginTop: 15,
     backgroundColor: '#2196F3',
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  orderId: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statusChip: {
+    marginLeft: 8,
+  },
+  orderCard: {
+    margin: 16,
+  },
+  infoText: {
+    fontSize: 14,
+    marginBottom: 4,
+    color: '#666',
+  },
+  actionButtons: {
+    padding: 16,
+  },
+  actionButton: {
+    marginBottom: 8,
   },
 });
 
