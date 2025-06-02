@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Searchbar, Chip } from 'react-native-paper';
-import api, { endpoints } from '../../configs/Apis';
+import api, { endpoints, authApi } from '../../configs/Apis';
 import Icon from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Home = ({ navigation }) => {
   // States cho Featured Restaurants
@@ -27,6 +28,7 @@ const Home = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [menus, setMenus] = useState([]);
 
   // Load Featured Restaurants
   const fetchFeaturedRestaurants = async () => {
@@ -179,15 +181,45 @@ const Home = ({ navigation }) => {
     }
   };
 
+  // Load Menus
+  const loadMenus = async () => {
+    try {
+      if (!endpoints.menus) {
+        console.log('Menus endpoint not available');
+        return;
+      }
+
+      const response = await api.get(endpoints.menus);
+      
+      if (response.data && Array.isArray(response.data)) {
+        const formattedMenus = response.data.map(menu => ({
+          ...menu,
+          items_count: menu.items?.length || 0,
+          price: menu.total_price || 0,
+          average_rating: menu.average_rating || 0,
+          store: menu.store || {},
+          image: menu.image || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-menu.png'
+        }));
+        setMenus(formattedMenus);
+      }
+    } catch (err) {
+      console.error('Menu API Error:', err.message);
+    }
+  };
+
   // Initial load
   useEffect(() => {
     const loadInitialData = async () => {
       setInitialLoading(true);
-      await Promise.all([
-        fetchFeaturedRestaurants(),
-        loadCategories()
-      ]);
-      setInitialLoading(false);
+      try {
+        await fetchFeaturedRestaurants();
+        await loadCategories();
+        await loadMenus();
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      } finally {
+        setInitialLoading(false);
+      }
     };
     loadInitialData();
   }, []);
@@ -257,7 +289,8 @@ const Home = ({ navigation }) => {
       style={styles.dishItem}
       onPress={() => navigation.navigate('DishDetail', { 
         id: item.id,
-        name: item.name
+        name: item.name,
+        storeId: item.store
       })}
     >
       <Image source={{ uri: item.image }} style={styles.dishImage} />
@@ -274,6 +307,24 @@ const Home = ({ navigation }) => {
           {item.review_count > 0 && (
             <Text style={styles.reviewCount}>({item.review_count} đánh giá)</Text>
           )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Menu Card Component
+  const MenuCard = ({ menu }) => (
+    <TouchableOpacity 
+      style={styles.menuCard}
+      onPress={() => navigation.navigate('MenuDetail', { 
+        id: menu.id,
+        name: menu.name
+      })}
+    >
+      <View style={styles.menuContent}>
+        <Text style={styles.menuTitle}>{menu.name}</Text>
+        <View style={styles.menuInfo}>
+          <Text style={styles.menuItems}>{menu.items_count || 0} món</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -313,6 +364,23 @@ const Home = ({ navigation }) => {
                 ))}
               </ScrollView>
             </View>
+
+            {/* Phần Menu */}
+            {menus && menus.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Menu đặc biệt</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {menus.map(menu => (
+                    <MenuCard key={menu.id} menu={menu} />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Menu đặc biệt</Text>
+                <Text style={styles.emptyText}>Không có menu nào</Text>
+              </View>
+            )}
 
             {/* Categories Filter (nếu có) */}
             {categories.length > 0 && (
@@ -543,6 +611,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginLeft: 5,
+  },
+  // Menu Card Styles
+  menuCard: {
+    width: 200,
+    marginRight: 15,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    padding: 15,
+  },
+  menuContent: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  menuInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuItems: {
+    fontSize: 14,
+    color: '#666',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
 });
 

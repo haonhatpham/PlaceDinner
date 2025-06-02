@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { Text, Card, Button, FAB, Portal, Dialog, Chip, SegmentedButtons } from 'react-native-paper';
+import { Text, Card, Button, FAB, Portal, Dialog, Chip, SegmentedButtons, TextInput } from 'react-native-paper';
 import { MyUserContext } from '../../configs/Contexts';
 import MyStyles from '../../styles/MyStyles';
 import { authApi, endpoints } from '../../configs/Apis';
@@ -19,6 +19,8 @@ const ManageMenus = () => {
     const [selectedMealTime, setSelectedMealTime] = useState('BREAKFAST');
     const [visible, setVisible] = useState(false);
     const [selectedFoods, setSelectedFoods] = useState([]);
+    const [menuName, setMenuName] = useState('');
+    const [menuDescription, setMenuDescription] = useState('');
 
     useEffect(() => {
         if (user && user.store) {
@@ -57,37 +59,38 @@ const ManageMenus = () => {
     const saveMenu = async () => {
         try {
             const token = await AsyncStorage.getItem('token');
-            // Tạo tên menu tự động theo định dạng: "Menu [Bữa ăn] - [Ngày/Tháng]"
-            const currentDate = new Date();
-            const formattedDate = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
-            const menuName = `Menu ${MEAL_TIMES.find(m => m.value === selectedMealTime)?.label} - ${formattedDate}`;
 
             // Kiểm tra dữ liệu trước khi gửi
+            if (!menuName.trim()) {
+                Alert.alert('Lỗi', 'Vui lòng nhập tên menu');
+                return;
+            }
+
             if (selectedFoods.length === 0) {
                 Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một món ăn cho menu');
                 return;
             }
 
             const data = {
-                name: menuName,
+                name: menuName.trim(),
+                description: menuDescription.trim(),
                 menu_type: selectedMealTime,
                 foods: selectedFoods
             };
             
-            console.log('Sending request to:', endpoints['store-menus']);
-            console.log('Request data:', JSON.stringify(data, null, 2));
-            
             const response = await authApi(token).post(endpoints['store-menus'], data);
-            console.log('Response:', response.data);
             
             Alert.alert('Thành công', 'Đã lưu menu thành công');
             setVisible(false);
+            // Reset form
+            setMenuName('');
+            setMenuDescription('');
+            setSelectedFoods([]);
         } catch (error) {
             console.error('Error details:', {
                 message: error.message,
                 response: error.response?.data,
-                status: error.response?.status,
-                data: error.response?.config?.data
+                status: error.response?.status
             });
             Alert.alert(
                 'Lỗi',
@@ -157,11 +160,18 @@ const ManageMenus = () => {
 
             <Portal>
                 <Dialog visible={visible} onDismiss={() => setVisible(false)}>
-                    <Dialog.Title>Xác nhận lưu menu</Dialog.Title>
+                    <Dialog.Title>Tạo Menu Mới</Dialog.Title>
                     <Dialog.Content>
-                        <Text>
-                            Bạn đã chọn {selectedFoods.length} món cho {MEAL_TIMES.find(m => m.value === selectedMealTime)?.label.toLowerCase()}.
-                            Xác nhận lưu menu?
+                        <TextInput
+                            label="Tên menu"
+                            value={menuName}
+                            onChangeText={setMenuName}
+                            style={styles.input}
+                            placeholder="Nhập tên menu"
+                        />
+                       
+                        <Text style={styles.selectionInfo}>
+                            Đã chọn {selectedFoods.length} món cho {MEAL_TIMES.find(m => m.value === selectedMealTime)?.label.toLowerCase()}
                         </Text>
                     </Dialog.Content>
                     <Dialog.Actions>
@@ -213,6 +223,15 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
     },
+    input: {
+        marginBottom: 12,
+        backgroundColor: '#fff',
+    },
+    selectionInfo: {
+        marginTop: 8,
+        color: '#666',
+        fontSize: 14,
+    }
 });
 
 export default ManageMenus; 

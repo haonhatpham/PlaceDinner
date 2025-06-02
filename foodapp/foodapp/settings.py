@@ -27,7 +27,7 @@ SECRET_KEY = "django-insecure-$@%j3g5ade&)fzca0$2p(3g11y#^yn$xc@-0bm83@tkwb4swj6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.100.86','192.168.100.22']  # IP máy tính bạn
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.100.86','192.168.100.22','192.168.1.11','192.168.1.8']  # IP máy tính bạn
 
 # Application definition
 
@@ -105,7 +105,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'hieu',
         'HOST': ''  # mặc định localhost
     }
 }
