@@ -73,6 +73,7 @@ const Login = () => {
 
                 // Lấy thông tin user
                 const userRes = await authApi(res.data.access_token).get(endpoints['current-user']);
+                console.log("Login - User Data from API:", JSON.stringify(userRes.data, null, 2));
                 
                 // Cập nhật state và chuyển hướng
                 dispatch({

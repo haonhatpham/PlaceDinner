@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useContext } from "react";
 import { Text, View, ScrollView } from "react-native";
@@ -43,8 +42,6 @@ const Profile = () => {
         }, [user])
     );
 
-    console.log("Profile User Data:", JSON.stringify(user, null, 2));
-
     const logout = async () => {
         try {
             // Xóa token và refresh token
@@ -56,8 +53,10 @@ const Profile = () => {
                 "type": "logout"
             });
 
-            // Chuyển về trang đăng nhập
-            nav.navigate("Đăng nhập");
+            // Chuyển về trang đăng nhập thông qua Main stack
+            nav.navigate('Main', {
+                screen: 'Đăng nhập'
+            });
         } catch (error) {
             console.error("Lỗi đăng xuất:", error);
         }

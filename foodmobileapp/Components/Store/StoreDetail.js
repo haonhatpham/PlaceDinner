@@ -27,6 +27,7 @@ const StoreDetail = ({ route, navigation }) => {
     const [isFollowing, setIsFollowing] = useState(false);
     const [followersCount, setFollowersCount] = useState(0);
     const user = useContext(MyUserContext);
+    console.log("StoreDetail - User Data:", JSON.stringify(user, null, 2));
 
     useEffect(() => {
         loadStoreDetail();
@@ -160,16 +161,78 @@ const StoreDetail = ({ route, navigation }) => {
                 <View style={styles.mainInfoContainer}>
                      <View style={styles.storeHeader}>
                         <Text style={styles.storeName}>{store.name}</Text>
-                        <TouchableOpacity 
-                            style={[styles.followButton, isFollowing && styles.followingButton]} 
-                            onPress={handleFollow}
-                        >
-                            <Icon 
-                                name={isFollowing ? "heart" : "heart-outline"} 
-                                size={24} 
-                                color={isFollowing ? "#fff" : "#e74c3c"} 
-                            />
-                        </TouchableOpacity>
+                        <View style={styles.headerButtons}>
+                            {user && (
+                                <TouchableOpacity 
+                                    style={styles.chatButton}
+                                    onPress={() => {
+                                        console.log("StoreDetail - Chat Button Pressed");
+                                        console.log("StoreDetail - User:", user);
+                                        console.log("StoreDetail - Store:", store);
+                                        
+                                        // Kiểm tra nếu người dùng là chủ cửa hàng và đang xem cửa hàng của chính mình
+                                        if (user.role === 'Chủ cửa hàng' && user.store && user.store.id === store.id) {
+                                            Alert.alert(
+                                                'Thông báo',
+                                                'Bạn không thể chat với chính cửa hàng của mình'
+                                            );
+                                            return;
+                                        }
+
+                                        if (user && user.id) {
+                                            // Đảm bảo ID được chuyển thành string
+                                            const userIdStr = user.id.toString();
+                                            const storeIdStr = store.id.toString();
+                                            
+                                            // Tạo roomId dựa trên thứ tự ID để đảm bảo tính nhất quán
+                                            const sortedIds = [userIdStr, storeIdStr].sort();
+                                            const roomId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
+                                            
+                                            console.log("StoreDetail - Starting new chat with params:", {
+                                                storeId: storeIdStr,
+                                                userId: userIdStr,
+                                                storeName: store.name,
+                                                roomId: roomId
+                                            });
+
+                                            navigation.navigate('Main', {
+                                                screen: 'ChatTab',
+                                                params: {
+                                                    screen: 'ChatScreen',
+                                                    params: {
+                                                        storeId: storeIdStr,
+                                                        userId: userIdStr,
+                                                        storeName: store.name,
+                                                        isNewChat: true
+                                                    }
+                                                }
+                                            });
+                                        } else {
+                                            Alert.alert(
+                                                'Thông báo',
+                                                'Vui lòng đăng nhập để sử dụng tính năng chat',
+                                                [
+                                                    { text: 'Đăng nhập', onPress: () => navigation.navigate('Main', { screen: 'Đăng nhập' }) },
+                                                    { text: 'Hủy', style: 'cancel' }
+                                                ]
+                                            );
+                                        }
+                                    }}
+                                >
+                                    <Icon name="message-text" size={24} color="#2196F3" />
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity 
+                                style={[styles.followButton, isFollowing && styles.followingButton]} 
+                                onPress={handleFollow}
+                            >
+                                <Icon 
+                                    name={isFollowing ? "heart" : "heart-outline"} 
+                                    size={24} 
+                                    color={isFollowing ? "#fff" : "#e74c3c"} 
+                                />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                     
                     <View style={styles.statsContainer}>
@@ -405,6 +468,18 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#666',
         marginLeft: 5,
+    },
+    headerButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    chatButton: {
+        padding: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#2196F3',
+        backgroundColor: '#fff',
+        marginRight: 8,
     },
 });
 

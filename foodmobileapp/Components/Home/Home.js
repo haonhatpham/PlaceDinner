@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Searchbar, Chip } from 'react-native-paper';
@@ -257,6 +258,32 @@ const Home = ({ navigation }) => {
     if (!loading && page > 0 && hasMore && dishes.length > 0) {
       setPage(page + 1);
     }
+  };
+
+  const handleOrderNow = (food) => {
+    if (!user) {
+      Alert.alert(
+        'Thông báo',
+        'Vui lòng đăng nhập để đặt hàng',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          { text: 'Đăng nhập', onPress: () => navigation.navigate('Đăng nhập') }
+        ]
+      );
+      return;
+    }
+
+    navigation.navigate('Trang chủ', {
+      screen: 'Order',
+      params: {
+        foods: [{
+          ...food,
+          quantity: 1,
+          note: ''
+        }],
+        directOrder: true
+      }
+    });
   };
 
   // Restaurant Card Component

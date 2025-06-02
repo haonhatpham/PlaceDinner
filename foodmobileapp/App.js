@@ -1,7 +1,7 @@
 import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Icon, Provider as PaperProvider } from "react-native-paper";
+import { Icon, Provider as PaperProvider, IconButton } from "react-native-paper";
 import { useContext, useReducer } from "react";
 import Home from "./Components/Home/Home";
 import OrderListScreen from "./Components/Order/OrderListScreen";
@@ -19,26 +19,89 @@ import StoreDetail from "./Components/Store/StoreDetail";
 import RevenueStats from "./Components/Statistics/RevenueStats";
 import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
+import ChatScreen from './Components/Chat/ChatScreen';
+import ChatListScreen from './Components/Chat/ChatListScreen';
+import { useNavigation } from '@react-navigation/native';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Thêm ChatStack vào các Stack Navigator
+const ChatStack = () => {
+  const user = useContext(MyUserContext);
+  const navigation = useNavigation();
+  
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="ChatList" 
+        component={ChatListScreen}
+        options={{ 
+          title: "Tin nhắn",
+          headerRight: () => (
+            <IconButton
+              icon="plus"
+              size={24}
+              onPress={() => navigation.navigate('Search')}
+            />
+          )
+        }}
+      />
+      <Stack.Screen 
+        name="ChatScreen" 
+        component={ChatScreen}
+        options={({ route }) => ({ 
+          title: route.params?.storeName || "Nhắn tin với cửa hàng" 
+        })}
+      />
+    </Stack.Navigator>
+  );
+};
 
 const HomeStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="Home" component={Home} options={{ title: "Trang chủ" }} />
     <Stack.Screen name="Order" component={OrderScreen} options={{ title: "Chi tiết đơn hàng" }} />
     <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Tìm kiếm món ăn" }} />
+    <Stack.Screen name="Chat" component={ChatStack} options={{ headerShown: false }} />
   </Stack.Navigator>
 );
 
-const StoreStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen name="ManageFoods" component={ManageFoods} options={{ title: "Quản lý món ăn" }} />
-    <Stack.Screen name="ManageMenus" component={ManageMenus} options={{ title: "Quản lý Menu" }} />
-    <Stack.Screen name="StoreOrders" component={StoreOrders} options={{ title: "Quản lý đơn hàng" }} />
-    <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
-  </Stack.Navigator>
-);
+const StoreStack = () => {
+  const user = useContext(MyUserContext);
+  
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="ManageFoods" 
+        component={ManageFoods} 
+        options={{ title: "Quản lý món ăn" }} 
+      />
+      <Stack.Screen 
+        name="ManageMenus" 
+        component={ManageMenus} 
+        options={{ title: "Quản lý Menu" }} 
+      />
+      <Stack.Screen 
+        name="StoreOrders" 
+        component={StoreOrders} 
+        options={{ title: "Quản lý đơn hàng" }} 
+      />
+      <Stack.Screen 
+        name="RevenueStats" 
+        component={RevenueStats} 
+        options={{ title: "Thống kê doanh thu" }} 
+      />
+      {user && (
+        <Stack.Screen 
+          name="Chat" 
+          component={ChatStack} 
+          options={{ headerShown: false }} 
+        />
+      )}
+    </Stack.Navigator>
+  );
+};
 
 const ProfileStack = () => (
   <Stack.Navigator>
@@ -49,8 +112,6 @@ const ProfileStack = () => (
 
 const TabNavigator = () => {
   const user = useContext(MyUserContext);
-
-  console.log("Current User in TabNavigator:", JSON.stringify(user, null, 2));
 
   return (
     <Tab.Navigator>
@@ -119,6 +180,16 @@ const TabNavigator = () => {
               tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="account" />,
             }}
           />
+          {user && (
+            <Tab.Screen
+              name="ChatTab"
+              component={ChatStack}
+              options={{
+                title: "Chat",
+                tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="message-text" />,
+              }}
+            />
+          )}
         </>
       )}
     </Tab.Navigator>
@@ -126,13 +197,15 @@ const TabNavigator = () => {
 };
 
 // Tạo RootStack bao ngoài TabNavigator
-const RootStack = createNativeStackNavigator();
+const RootStack = createStackNavigator();
 
 const RootNavigator = () => (
   <RootStack.Navigator>
     <RootStack.Screen name="Main" component={TabNavigator} options={{ headerShown: false }} />
     <RootStack.Screen name="StoreDetail" component={StoreDetail} options={{ title: "Chi tiết cửa hàng" }} />
     <RootStack.Screen name="DishDetail" component={DishDetail} options={{ title: "Chi tiết món ăn" }} />
+    <RootStack.Screen name="Chat" component={ChatScreen} options={{ title: "Chat" }} />
+    <RootStack.Screen name="Order" component={OrderScreen} options={{ title: "Chi tiết đơn hàng" }} />
   </RootStack.Navigator>
 );
 

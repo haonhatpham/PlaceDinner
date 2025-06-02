@@ -272,21 +272,16 @@ const ManageFoods = () => {
                 available_from: null,
                 available_to: null
             });
-            
+
             // Tải lại danh sách món ăn
             await loadFoods();
-            
+
             // Hiển thị thông báo thành công
             Alert.alert('Thành công', food.id ? 'Đã cập nhật món ăn' : 'Đã thêm món ăn mới');
-            
+
         } catch (error) {
-            if (error.response) {
-                console.log('Lỗi:', error.response.data);
-                Alert.alert('Lỗi', 'Không thể lưu món ăn. Vui lòng thử lại.');
-            } else {
-                console.log('Lỗi:', error);
-                Alert.alert('Lỗi', 'Đã có lỗi xảy ra. Vui lòng thử lại.');
-            }
+            console.error('Lỗi khi tạo món ăn:', error);
+            Alert.alert('Lỗi', error.response?.data?.error || 'Có lỗi xảy ra khi tạo món ăn');
         } finally {
             setLoading(false);
         }
@@ -446,10 +441,10 @@ const ManageFoods = () => {
                             >
                                 <Picker.Item label="Chọn danh mục" value="" />
                                 {categories.map(category => (
-                                    <Picker.Item 
-                                        key={category.id} 
-                                        label={category.name} 
-                                        value={category.id} 
+                                    <Picker.Item
+                                        key={category.id}
+                                        label={category.name}
+                                        value={category.id}
                                     />
                                 ))}
                             </Picker>
@@ -500,8 +495,8 @@ const ManageFoods = () => {
                     </Dialog.Content>
                     <Dialog.Actions>
                         <Button onPress={() => setVisible(false)} disabled={loading}>Hủy</Button>
-                        <Button 
-                            onPress={handleAddFood} 
+                        <Button
+                            onPress={handleAddFood}
                             loading={loading}
                             disabled={loading}
                         >

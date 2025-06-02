@@ -23,6 +23,7 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         fields = [
+            'id',
             'username', 'password', 'email',
             'first_name', 'last_name', 'avatar',
             'role', 'phone_number', 'latitude',

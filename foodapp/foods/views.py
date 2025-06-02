@@ -114,12 +114,32 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
             serializer = self.get_serializer(foods, many=True)
             return Response(serializer.data)
         # POST
-        serializer = FoodSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(store=request.user.account.store)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        print(serializer.errors)  # Thêm dòng này
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = FoodSerializer(data=request.data)
+            if serializer.is_valid():
+                food = serializer.save(store=request.user.account.store)
+
+                # Kiểm tra xem có follower không
+                has_followers = food.store.followers.exists()
+
+                response_data = serializer.data
+                response_data.update({
+                    'message': 'Tạo món ăn thành công',
+                    'has_followers': has_followers,
+                    'notification_status': 'Đang gửi thông báo' if has_followers else 'Không có follower'
+                })
+
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            return Response({
+                'error': 'Dữ liệu không hợp lệ',
+                'details': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Lỗi khi tạo món ăn: {str(e)}")
+            return Response({
+                'error': 'Có lỗi xảy ra khi tạo món ăn',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
     def update_availability(self, request, pk=None):
@@ -842,7 +862,7 @@ def admin_stats_view(request):
 class MenuViewSet(viewsets.GenericViewSet,generics.CreateAPIView,generics.ListAPIView):
     queryset = Menu.objects.all()
     serializer_class = MenuSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     @action(detail=False, methods=['GET', 'POST'], url_path='my-store',permission_classes=[IsStoreOwner])
     def get_my_store_menus(self, request):
@@ -952,3 +972,25 @@ class CategoryViewSet(viewsets.ViewSet,generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     queryset = Category.objects.all()
 
+
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .firebase_service import send_message, get_chat_room
+
+@api_view(['POST'])
+def send_chat(request):
+    sender_id = request.user.id
+    receiver_id = request.data.get('receiver_id')
+    message = request.data.get('message')
+
+    room_id = get_chat_room(sender_id, receiver_id)
+    success = send_message(room_id, {
+        'sender_id': str(sender_id),
+        'message': message,
+        'read': False
+    })
+
+    if success:
+        return Response({"status": "Tin nhắn đã gửi"})
+    return Response({"error": "Gửi tin nhắn thất bại"}, status=400)

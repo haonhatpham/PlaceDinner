@@ -125,7 +125,12 @@ const DishDetail = ({ route, navigation }) => {
         'Đã thêm món ăn vào giỏ hàng',
         [
           { text: 'Tiếp tục mua hàng', style: 'cancel' },
-          { text: 'Xem giỏ hàng', onPress: () => navigation.navigate('Đơn hàng') }
+          { 
+            text: 'Xem giỏ hàng', 
+            onPress: () => navigation.navigate('Main', {
+              screen: 'Đơn hàng'
+            })
+          }
         ]
       );
     } catch (err) {
@@ -166,7 +171,7 @@ const DishDetail = ({ route, navigation }) => {
         return;
       }
 
-      // Chuyển đến màn hình đặt hàng với thông tin món ăn
+      // Chuyển đến màn hình đặt hàng trực tiếp trong RootStack
       navigation.navigate('Order', {
         foods: [{
           id: food.id,
@@ -176,7 +181,7 @@ const DishDetail = ({ route, navigation }) => {
           note: note,
           image: food.image,
           store_id: food.store,
-          store_name: ""
+          store_name: food.store?.name || ""
         }],
         directOrder: true // Đánh dấu là đặt hàng trực tiếp
       });
