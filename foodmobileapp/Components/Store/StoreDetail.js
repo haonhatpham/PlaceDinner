@@ -219,7 +219,8 @@ const StoreDetail = ({ route, navigation }) => {
                                         style={styles.foodItem}
                                         onPress={() => navigation.navigate('DishDetail', { 
                                             id: food.id,
-                                            name: food.name
+                                            name: food.name,
+                                            storeId: id
                                         })}
                                     >
                                         <Image 

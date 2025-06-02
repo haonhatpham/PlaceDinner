@@ -842,7 +842,7 @@ def admin_stats_view(request):
 class MenuViewSet(viewsets.GenericViewSet,generics.CreateAPIView,generics.ListAPIView):
     queryset = Menu.objects.all()
     serializer_class = MenuSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @action(detail=False, methods=['GET', 'POST'], url_path='my-store',permission_classes=[IsStoreOwner])
     def get_my_store_menus(self, request):
@@ -945,3 +945,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 "error": "Failed to process payment",
                 "details": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CategoryViewSet(viewsets.ViewSet,generics.ListAPIView):
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.AllowAny]
+    queryset = Category.objects.all()
+

@@ -29,8 +29,8 @@ const MEAL_TIME_CHOICES = [
 const ManageFoods = () => {
     const navigation = useNavigation();
     const user = useContext(MyUserContext);
-    console.log('Thông tin user:', user);
     const [foods, setFoods] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [visible, setVisible] = useState(false);
     const [loading, setLoading] = useState(false);
     const [food, setFood] = useState({
@@ -42,8 +42,8 @@ const ManageFoods = () => {
         food_image: null,
         is_available: true,
         meal_time: 'ANYTIME',
-        available_from: null,  // Thay đổi để khớp với backend (có thể null)
-        available_to: null     // Thay đổi để khớp với backend (có thể null)
+        available_from: null,
+        available_to: null
     });
 
     const validateTimeFormat = (time) => {
@@ -118,9 +118,20 @@ const ManageFoods = () => {
         }
     };
 
+    const loadCategories = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const res = await authApi(token).get(endpoints['categories']);
+            setCategories(res.data);
+        } catch (error) {
+            console.error('Lỗi tải danh mục:', error);
+        }
+    };
+
     useEffect(() => {
         if (user && user.store) {
             loadFoods();
+            loadCategories();
         }
     }, [user]);
 
@@ -228,25 +239,26 @@ const ManageFoods = () => {
                 return;
             }
 
+            let response;
             if (food.id) {
                 // Nếu có id nghĩa là đang sửa món ăn
-                await authApi(token).patch(endpoints['food_detail'](food.id), formData, {
+                response = await authApi(token).patch(endpoints['food_detail'](food.id), formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
                 });
+                console.log('Response sau khi sửa món:', response.data);
             } else {
                 // Thêm món ăn mới
-                await authApi(token).post(endpoints['store-foods'], formData, {
+                response = await authApi(token).post(endpoints['store-foods'], formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
                 });
+                console.log('Response sau khi thêm món:', response.data);
             }
-
             
-            console.log('Response sau khi thêm món:', response.data);
-            
+            // Đóng dialog và reset form
             setVisible(false);
             setFood({
                 name: '',
@@ -260,7 +272,13 @@ const ManageFoods = () => {
                 available_from: null,
                 available_to: null
             });
-            loadFoods();
+            
+            // Tải lại danh sách món ăn
+            await loadFoods();
+            
+            // Hiển thị thông báo thành công
+            Alert.alert('Thành công', food.id ? 'Đã cập nhật món ăn' : 'Đã thêm món ăn mới');
+            
         } catch (error) {
             if (error.response) {
                 console.log('Lỗi:', error.response.data);
@@ -420,12 +438,21 @@ const ManageFoods = () => {
                                 multiline
                                 style={styles.input}
                             />
-                            <TextInput
-                                label="Danh mục"
-                                value={food.category}
-                                onChangeText={text => setFood({...food, category: text})}
-                                style={styles.input}
-                            />
+                            <Text style={styles.label}>Danh mục</Text>
+                            <Picker
+                                selectedValue={food.category}
+                                onValueChange={value => setFood({...food, category: value})}
+                                style={styles.picker}
+                            >
+                                <Picker.Item label="Chọn danh mục" value="" />
+                                {categories.map(category => (
+                                    <Picker.Item 
+                                        key={category.id} 
+                                        label={category.name} 
+                                        value={category.id} 
+                                    />
+                                ))}
+                            </Picker>
                             
                             <Text style={styles.label}>Thời gian bán</Text>
                             <Picker
@@ -472,9 +499,13 @@ const ManageFoods = () => {
                         </ScrollView>
                     </Dialog.Content>
                     <Dialog.Actions>
-                        <Button onPress={() => setVisible(false)}>Hủy</Button>
-                        <Button onPress={handleAddFood} loading={loading}>
-                            {food.id ? 'Lưu' : 'Thêm'}
+                        <Button onPress={() => setVisible(false)} disabled={loading}>Hủy</Button>
+                        <Button 
+                            onPress={handleAddFood} 
+                            loading={loading}
+                            disabled={loading}
+                        >
+                            {loading ? 'Đang xử lý...' : (food.id ? 'Lưu' : 'Thêm')}
                         </Button>
                     </Dialog.Actions>
                 </Dialog>

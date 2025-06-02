@@ -232,7 +232,7 @@ const OrderScreen = ({ route, navigation }) => {
       }
 
       setLoading(true);
-      await authApi(token).post(endpoints['confirm-order'](currentOrder.id));
+      await authApi(token).patch(endpoints['confirm-order'](currentOrder.id));
       
       // Cập nhật trạng thái đơn hàng trong state
       setCurrentOrder({
@@ -261,7 +261,7 @@ const OrderScreen = ({ route, navigation }) => {
       }
 
       setLoading(true);
-      await authApi(token).post(endpoints['deliver-order'](currentOrder.id));
+      await authApi(token).patch(endpoints['deliver-order'](currentOrder.id));
       
       // Cập nhật trạng thái đơn hàng trong state
       setCurrentOrder({
