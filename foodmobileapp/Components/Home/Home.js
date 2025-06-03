@@ -97,7 +97,6 @@ const Home = ({ navigation }) => {
 
       try {
         setLoading(true);
-        console.log('Calling foods API:', url, 'Page:', page);
         const response = await api.get(url);
         
         // Kiểm tra cấu trúc response
@@ -238,7 +237,6 @@ const Home = ({ navigation }) => {
   // Load dishes with debounce
   useEffect(() => {
     if (endpoints.foods) {
-      console.log('useEffect triggered - searchQuery:', searchQuery, 'selectedCategory:', selectedCategory, 'page:', page);
       const timer = setTimeout(() => {
         loadDishes();
       }, 500);
@@ -250,7 +248,6 @@ const Home = ({ navigation }) => {
   // Reset when search/filter changes
   useEffect(() => {
     if (endpoints.foods) {
-      console.log('Resetting dishes - searchQuery changed:', searchQuery, 'selectedCategory:', selectedCategory);
       setPage(1);
       setDishes([]);
       setHasMore(true); // Reset hasMore
@@ -259,7 +256,6 @@ const Home = ({ navigation }) => {
 
   // Load more dishes với protection tốt hơn
   const loadMore = () => {
-    console.log('LoadMore called - Loading:', loading, 'Page:', page, 'HasMore:', hasMore, 'Dishes length:', dishes.length);
     // Chỉ load more khi:
     // 1. Không đang loading
     // 2. Có page > 0 (tức là còn data để load)
@@ -380,6 +376,11 @@ const Home = ({ navigation }) => {
     );
   };
 
+  // Thêm hàm xử lý khi nhấn vào thanh tìm kiếm
+  const handleSearchPress = () => {
+    navigation.navigate('Search', { query: searchQuery });
+  };
+
   if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -398,6 +399,7 @@ const Home = ({ navigation }) => {
           value={searchQuery}
           onChangeText={setSearchQuery}
           style={styles.searchBar}
+          onPress={handleSearchPress}
         />
       </View>
 

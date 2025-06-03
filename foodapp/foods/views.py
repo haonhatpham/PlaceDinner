@@ -632,7 +632,7 @@ class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView):
     # GET /orders/my-store/ → Lấy đơn hàng của cửa hàng hiện tại (chủ cửa hàng)
     @action(detail=False, methods=['GET'], url_path='my-store', permission_classes=[IsStoreOwner])
     def get_my_store_orders(self, request):
-        orders = Order.objects.filter(store=request.user.store)
+        orders = Order.objects.filter(store=request.user.account.store)
         serializer = self.get_serializer(orders, many=True)
         return Response(serializer.data)
 

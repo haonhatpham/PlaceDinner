@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Cấu hình base URL cho API
-export const BASE_URL = 'http://192.168.1.8:8000';
+export const BASE_URL = 'http://192.168.100.22:8000';
 
 // Hàm xử lý URL ảnh
 export const getImageUrl = (imagePath) => {
@@ -41,7 +41,6 @@ export const endpoints = {
     'order-detail': (id) => `/orders/${id}/`,
     'store-orders': '/orders/my-store/',
     'store-categories': (id) => `/stores/${id}/categories/`,
-    'store-orders': '/store/orders/',
     'confirm-order':(id) => `/orders/${id}/confirm/`,
     'deliver-order':(id) => `/orders/${id}/deliver/`,
 

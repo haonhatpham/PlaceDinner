@@ -2,7 +2,6 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from foods.views import *
 from django.contrib.auth.views import LoginView, LogoutView
-
 from foods.webhook import momo_webhook_view
 
 router = DefaultRouter()

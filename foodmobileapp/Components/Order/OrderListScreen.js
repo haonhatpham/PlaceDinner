@@ -52,7 +52,9 @@ const OrderListScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const res = await authApi(token).get(endpoints['user-orders']);
+      // Sử dụng endpoint khác nhau dựa vào loại tài khoản
+      const endpoint = user.role === 'Chủ cửa hàng' ? endpoints['store-orders'] : endpoints['user-orders'];
+      const res = await authApi(token).get(endpoint);
       setOrders(res.data);
     } catch (err) {
       console.error('Error loading orders:', err);
@@ -301,10 +303,14 @@ const OrderListScreen = ({ navigation }) => {
 
     return (
       <View style={styles.ordersContainer}>
-        <Text style={styles.ordersTitle}>Lịch sử đơn hàng</Text>
+        <Text style={styles.ordersTitle}>
+          {user.role === 'Chủ cửa hàng' ? 'Đơn hàng của cửa hàng' : 'Lịch sử đơn hàng'}
+        </Text>
         
         {orders.length === 0 ? (
-          <Text style={styles.emptyOrdersText}>Bạn chưa có đơn hàng nào</Text>
+          <Text style={styles.emptyOrdersText}>
+            {user.role === 'Chủ cửa hàng' ? 'Chưa có đơn hàng nào' : 'Bạn chưa có đơn hàng nào'}
+          </Text>
         ) : (
           <FlatList
             data={orders}
@@ -322,6 +328,9 @@ const OrderListScreen = ({ navigation }) => {
                   <Badge>{item.status}</Badge>
                 </View>
                 <Text style={styles.orderDate}>Ngày đặt: {new Date(item.created_date).toLocaleDateString('vi-VN')}</Text>
+                {user.role === 'Chủ cửa hàng' && (
+                  <Text style={styles.orderCustomer}>Khách hàng: {item.customer_name || 'Khách hàng'}</Text>
+                )}
                 <Text style={styles.orderTotal}>Tổng tiền: {item.total_amount?.toLocaleString('vi-VN')}đ</Text>
               </TouchableOpacity>
             )}
@@ -501,6 +510,11 @@ const styles = StyleSheet.create({
   loginButton: {
     marginTop: 10,
     backgroundColor: '#2196F3',
+  },
+  orderCustomer: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
   },
 });
 

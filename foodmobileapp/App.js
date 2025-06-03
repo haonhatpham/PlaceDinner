@@ -61,7 +61,14 @@ const ChatStack = () => {
 
 const HomeStack = () => (
   <Stack.Navigator>
-    <Stack.Screen name="Home" component={Home} options={{ title: "Trang chủ" }} />
+    <Stack.Screen 
+      name="Home" 
+      component={Home} 
+      options={{ 
+        title: "Trang chủ",
+        headerShown: false
+      }} 
+    />
     <Stack.Screen name="Order" component={OrderScreen} options={{ title: "Chi tiết đơn hàng" }} />
     <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Tìm kiếm món ăn" }} />
     <Stack.Screen name="Chat" component={ChatStack} options={{ headerShown: false }} />

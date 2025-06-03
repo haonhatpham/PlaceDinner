@@ -4,255 +4,158 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
+  FlatList,
   ActivityIndicator,
   ScrollView,
-  Alert,
-  RefreshControl,
 } from 'react-native';
-import { authApi, endpoints, BASE_URL } from '../../configs/Apis';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../../configs/Apis';  // Import api mặc định
-import { useNavigation, useRoute } from '@react-navigation/native';
-import FoodCard from '../Food/FoodCard';
-import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons';
+import api, { endpoints } from '../../configs/Apis';
+import FoodCard from '../Food/FoodCard';
 
 const SearchScreen = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const initialQuery = route.params?.query || '';
-
-  // States
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [foods, setFoods] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isSearched, setIsSearched] = useState(false); // Đánh dấu đã từng tìm kiếm
-
-  // Filter states
-  const [category, setCategory] = useState('');
-  const [mealTime, setMealTime] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  const [ordering, setOrdering] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStore, setSelectedStore] = useState('');
+  
+  const [foods, setFoods] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [error, setError] = useState(null);
 
-  // Build search URL with filters
+  const [categories, setCategories] = useState([]);
+  const [stores, setStores] = useState([]);
+
+  const loadCategories = async () => {
+    try {
+      const response = await api.get(endpoints.categories);
+      if (response.data && Array.isArray(response.data)) {
+        setCategories(response.data);
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  };
+
+  const loadStores = async () => {
+    try {
+      const response = await api.get(endpoints.stores);
+       if (response.data && Array.isArray(response.data)) {
+        setStores(response.data);
+      }
+    } catch (err) {
+      console.error('Error loading stores:', err);
+    }
+  };
+
+  useEffect(() => {
+    setInitialLoading(true);
+    loadCategories();
+    loadStores();
+    setInitialLoading(false);
+  }, []);
+
   const buildSearchUrl = useCallback((customPage) => {
-    let url = '/foods/?';
+    let url = `${endpoints.foods}?page=${customPage || page}`;
     const params = new URLSearchParams();
 
     if (searchQuery) params.append('search', searchQuery);
-    if (category) params.append('category', category);
-    if (mealTime) params.append('meal_time', mealTime);
+    if (selectedCategory) params.append('category_id', selectedCategory);
+    if (selectedStore) params.append('store_id', selectedStore);
     if (minPrice) params.append('min_price', minPrice);
     if (maxPrice) params.append('max_price', maxPrice);
-    if (ordering) params.append('ordering', ordering);
-    if ((customPage || page) > 1) params.append('page', customPage || page);
 
-    return url + params.toString();
-  }, [searchQuery, category, mealTime, minPrice, maxPrice, ordering, page]);
+    return `${endpoints.foods}?${params.toString()}${customPage ? `&page=${customPage}` : `&page=${page}`}`;
+  }, [searchQuery, selectedCategory, selectedStore, minPrice, maxPrice, page]);
 
-  // Fetch foods
-  const fetchFoods = useCallback(async (isRefreshing = false, customPage = 1) => {
+  const fetchFoods = useCallback(async (isNewSearch = false) => {
+    if (isNewSearch) {
+      setPage(1);
+      setFoods([]);
+      setHasMore(true);
+      setError(null);
+    }
+
+    if (!hasMore && !isNewSearch) return;
+
+    setLoading(true);
     try {
-      if (isRefreshing) {
-        setLoading(true);
-        setError(null);
-        const url = buildSearchUrl(1);
-        const response = await api.get(url);
-        const { results, count, next } = response.data;
-        setFoods(results);
-        setTotalCount(count);
-        setHasMore(!!next);
-        setPage(1);
+      const currentUrl = buildSearchUrl(isNewSearch ? 1 : page);
+      console.log('Fetching:', currentUrl);
+      const response = await api.get(currentUrl);
+
+      if (response.data && Array.isArray(response.data.results)) {
+        const newFoods = response.data.results;
+        setFoods(prevFoods => isNewSearch ? newFoods : [...prevFoods, ...newFoods]);
+        setTotalCount(response.data.count);
+        setHasMore(!!response.data.next);
+        if (!isNewSearch) setPage(prevPage => prevPage + 1);
+      } else if (response.data && Array.isArray(response.data)) {
+           const newFoods = response.data;
+           setFoods(isNewSearch ? newFoods : [...foods, ...newFoods]);
+           setTotalCount(newFoods.length);
+           setHasMore(false);
+            if (!isNewSearch && newFoods.length > 0) setPage(prevPage => prevPage + 1);
       } else {
-        setLoading(true);
-        setError(null);
-        const url = buildSearchUrl(customPage);
-        const response = await api.get(url);
-        const { results, count, next } = response.data;
-        setFoods(prev => customPage === 1 ? results : [...prev, ...results]);
-        setTotalCount(count);
-        setHasMore(!!next);
+         setFoods(isNewSearch ? [] : foods);
+         setTotalCount(0);
+         setHasMore(false);
       }
+
     } catch (err) {
-      console.error('Search error:', err);
+      console.error('Search error:', err.response?.status, err.response?.data || err.message);
       setError(err.response?.data?.detail || 'Có lỗi xảy ra khi tìm kiếm');
-      if (isRefreshing) setFoods([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  }, [buildSearchUrl]);
+  }, [searchQuery, selectedCategory, selectedStore, minPrice, maxPrice, page, buildSearchUrl, hasMore, foods]);
 
-  // Khi vào trang, nếu có initialQuery thì tự động tìm kiếm
-  useEffect(() => {
-    if (initialQuery) {
-      setIsSearched(true);
-      fetchFoods(true, 1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Load more khi cuộn cuối danh sách
-  const loadMore = () => {
-    if (!loading && hasMore && isSearched && foods.length > 0) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchFoods(false, nextPage);
-    }
-  };
-
-  // Làm mới danh sách
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setPage(1);
-    fetchFoods(true, 1);
-  }, [fetchFoods]);
-
-  // Khi nhấn tìm kiếm
   const handleSearch = () => {
-    setIsSearched(true);
-    setPage(1);
-    fetchFoods(true, 1);
+     setError(null);
+     fetchFoods(true);
   };
 
-  // Đặt lại bộ lọc
+  const loadMore = () => {
+    if (!loading && hasMore) {
+        fetchFoods(false);
+    }
+  };
+
   const resetFilters = () => {
-    setCategory('');
-    setMealTime('');
+    setSearchQuery('');
     setMinPrice('');
     setMaxPrice('');
-    setOrdering('');
-    setPage(1);
-    setIsSearched(false);
+    setSelectedCategory('');
+    setSelectedStore('');
     setFoods([]);
     setTotalCount(0);
+    setPage(1);
+    setHasMore(true);
     setError(null);
-    setHasMore(false);
   };
 
-  // Render filter section
-  const renderFilters = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer}>
-      <View style={styles.filterRow}>
-        <Picker
-          selectedValue={category}
-          onValueChange={setCategory}
-          style={styles.picker}
-          itemStyle={styles.pickerItem}
-          mode="dropdown"
-        >
-          <Picker.Item label="Tất cả danh mục" value="" />
-          <Picker.Item label="Món chính" value="main" />
-          <Picker.Item label="Món phụ" value="side" />
-          <Picker.Item label="Tráng miệng" value="dessert" />
-        </Picker>
+  useEffect(() => {
+      const handler = setTimeout(() => {
+        if (!initialLoading) {
+           handleSearch();
+        }
+      }, 500);
 
-        <Picker
-          selectedValue={mealTime}
-          onValueChange={setMealTime}
-          style={styles.picker}
-          itemStyle={styles.pickerItem}
-          mode="dropdown"
-        >
-          <Picker.Item label="Tất cả thời gian" value="" />
-          <Picker.Item label="Bữa sáng" value="breakfast" />
-          <Picker.Item label="Bữa trưa" value="lunch" />
-          <Picker.Item label="Bữa tối" value="dinner" />
-        </Picker>
-
-        <Picker
-          selectedValue={ordering}
-          onValueChange={setOrdering}
-          style={styles.picker}
-          itemStyle={styles.pickerItem}
-          mode="dropdown"
-        >
-          <Picker.Item label="Sắp xếp" value="" />
-          <Picker.Item label="Giá tăng dần" value="price" />
-          <Picker.Item label="Giá giảm dần" value="-price" />
-          <Picker.Item label="Mới nhất" value="-created_date" />
-        </Picker>
-
-        <TouchableOpacity onPress={resetFilters} style={styles.resetButton}>
-          <Text style={styles.resetButtonText}>Đặt lại</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
-
-  // Render price filter
-  const renderPriceFilter = () => (
-    <View style={styles.priceFilterContainer}>
-      <TextInput
-        style={styles.priceInput}
-        placeholder="Giá tối thiểu"
-        keyboardType="numeric"
-        value={minPrice}
-        onChangeText={setMinPrice}
-        placeholderTextColor="#aaa"
-      />
-      <Text style={styles.priceSeparator}>-</Text>
-      <TextInput
-        style={styles.priceInput}
-        placeholder="Giá tối đa"
-        keyboardType="numeric"
-        value={maxPrice}
-        onChangeText={setMaxPrice}
-        placeholderTextColor="#aaa"
-      />
-    </View>
-  );
-
-  // Render food item
-  const renderFoodItem = ({ item }) => (
-    <FoodCard
-      food={item}
-      onPress={() => navigation.navigate('FoodDetail', { food: item })}
-    />
-  );
-
-  // Render empty state
-  const renderEmpty = () => {
-    if (!isSearched) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
-            Nhập từ khóa và nhấn tìm kiếm để bắt đầu
-          </Text>
-        </View>
-      );
-    }
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>
-          {error ? error : 'Không tìm thấy món ăn phù hợp'}
-        </Text>
-      </View>
-    );
-  };
-
-  // Render footer
-  const renderFooter = () => {
-    if (!loading) return null;
-    return (
-      <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#0000ff" />
-      </View>
-    );
-  };
+      return () => {
+        clearTimeout(handler);
+      };
+  }, [searchQuery, selectedCategory, selectedStore, minPrice, maxPrice]);
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      <View style={styles.searchBarContainer}>
         <TextInput
           style={styles.searchInput}
           placeholder="Tìm kiếm món ăn..."
@@ -265,32 +168,88 @@ const SearchScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Filters */}
-      {renderFilters()}
-      {renderPriceFilter()}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScrollView}>
+        <View style={styles.filtersRow}>
+           <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={selectedCategory}
+              onValueChange={(itemValue) => setSelectedCategory(itemValue)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Loại thức ăn" value="" />
+              {categories.map(cat => (
+                <Picker.Item key={cat.id} label={cat.name} value={cat.id} />
+              ))}
+            </Picker>
+          </View>
 
-      {/* Results Count */}
-      <Text style={styles.resultCount}>
-        Tìm thấy {totalCount} kết quả
-      </Text>
+           <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={selectedStore}
+                onValueChange={(itemValue) => setSelectedStore(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Cửa hàng" value="" />
+                 {stores.map(store => (
+                  <Picker.Item key={store.id} label={store.name} value={store.id} />
+                ))}
+              </Picker>
+            </View>
+            
+           <View style={styles.priceFilterContainer}>
+              <TextInput
+                style={styles.priceInput}
+                placeholder="Giá từ"
+                keyboardType="numeric"
+                value={minPrice}
+                onChangeText={setMinPrice}
+              />
+              <Text style={styles.priceSeparator}>-</Text>
+              <TextInput
+                style={styles.priceInput}
+                placeholder="Giá đến"
+                keyboardType="numeric"
+                value={maxPrice}
+                onChangeText={setMaxPrice}
+              />
+            </View>
 
-      {/* Food List */}
-      <FlatList
-        data={foods}
-        renderItem={renderFoodItem}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-          />
-        }
-      />
+            <TouchableOpacity onPress={resetFilters} style={styles.resetButton}>
+                <Text style={styles.resetButtonText}>Đặt lại</Text>
+            </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {totalCount > 0 && (
+         <Text style={styles.resultCountText}>Tìm thấy {totalCount} kết quả</Text>
+      )}
+
+      {initialLoading ? (
+         <ActivityIndicator style={styles.loadingIndicator} size="large" color="#0000ff" />
+      ) : error ? (
+         <View style={styles.emptyResultsContainer}>
+              <Text style={styles.emptyResultsText}>Lỗi: {error}</Text>
+         </View>
+      ) : (
+        <FlatList
+          data={foods}
+          renderItem={({ item }) => <FoodCard food={item} onPress={() => console.log('Navigate to food detail', item.id)} />}
+          keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+          contentContainerStyle={styles.resultsList}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListEmptyComponent={
+             !loading && !error && (
+              <View style={styles.emptyResultsContainer}>
+                <Text style={styles.emptyResultsText}>Không tìm thấy món ăn phù hợp.</Text>
+              </View>
+             )
+          }
+           ListFooterComponent={
+              loading && <ActivityIndicator style={styles.footerLoading} size="small" color="#0000ff" />
+          }
+        />
+      )}
     </View>
   );
 };
@@ -299,117 +258,117 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  searchContainer: {
-    flexDirection: 'row',
     padding: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    marginBottom: 0,
-    paddingBottom: 0,
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
     height: 40,
-    backgroundColor: '#f5f5f5',
+    borderColor: '#ccc',
+    borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 15,
     marginRight: 10,
-    fontSize: 16,
-    color: '#222',
   },
   searchButton: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 40,
+    backgroundColor: '#eee',
+    padding: 10,
+    borderRadius: 20,
+  },
+  filtersScrollView: {
+     marginBottom: 10,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+   pickerContainer: {
+    marginRight: 10,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+   },
+   picker: {
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  filterContainer: {
-    backgroundColor: '#fff',
-    paddingVertical: 0,
-    borderBottomWidth: 0,
-    height: 44,
-  },
-  filterRow: {
+    width: 120,
+   },
+   priceFilterContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 0,
+    marginRight: 10,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
     paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  picker: {
-    width: 130,
-    height: 50,
-    marginRight: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    justifyContent: 'center',
-    marginVertical: 0,
-    paddingVertical: 0,
-  },
-  pickerItem: {
-    height: 38,
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  resetButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 20,
-    marginLeft: 10,
-    height: 36,
-  },
-  resetButtonText: {
-    color: '#666',
-    fontWeight: 'bold',
-  },
-  priceFilterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingVertical: 0,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderBottomWidth: 0,
-  },
+   },
   priceInput: {
     flex: 1,
-    height: 36,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    fontSize: 15,
-    color: '#222',
+    height: 40,
+    borderRadius: 5,
   },
   priceSeparator: {
-    marginHorizontal: 8,
-    color: '#666',
-    fontSize: 18,
+    marginHorizontal: 5,
   },
-  resultCount: {
-    padding: 10,
+   resetButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#e0e0e0',
+    paddingHorizontal: 15,
+    height: 40,
+    borderRadius: 5,
+   },
+   resetButtonText: {
     color: '#666',
+   },
+   resultCountText: {
     fontSize: 15,
-  },
-  listContainer: {
+    color: '#666',
+    marginBottom: 10,
     paddingHorizontal: 10,
-    paddingBottom: 10,
-    paddingTop: 0,
+   },
+  resultsList: {
+    flexGrow: 1,
   },
-  emptyContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#666',
-    textAlign: 'center',
-    fontSize: 15,
-  },
-  footer: {
+  resultItem: {
     padding: 10,
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+  },
+  resultItemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  resultItemPrice: {
+    fontSize: 14,
+    color: 'green',
+  },
+  resultItemInfo: {
+    fontSize: 12,
+    color: '#666',
+  },
+  loadingIndicator: {
+    marginTop: 20,
+  },
+  footerLoading: {
+     paddingVertical: 10,
+  },
+  emptyResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 50,
+  },
+  emptyResultsText: {
+    fontSize: 16,
+    color: '#666',
   },
 });
 
