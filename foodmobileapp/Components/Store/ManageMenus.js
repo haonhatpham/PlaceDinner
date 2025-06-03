@@ -8,15 +8,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
 const MEAL_TIMES = [
-    { value: 'BREAKFAST', label: 'Bữa sáng', time: '06:00 - 10:00' },
-    { value: 'LUNCH', label: 'Bữa trưa', time: '11:00 - 14:00' },
-    { value: 'DINNER', label: 'Bữa tối', time: '17:00 - 21:00' }
+    { value: 'Bữa sáng', label: 'Bữa sáng', time: '06:00 - 10:00' },
+    { value: 'Bữa trưa', label: 'Bữa trưa', time: '11:00 - 14:00' },
+    { value: 'Bữa tối', label: 'Bữa tối', time: '17:00 - 21:00' }
 ];
 
 const ManageMenus = () => {
     const user = useContext(MyUserContext);
     const [foods, setFoods] = useState([]);
-    const [selectedMealTime, setSelectedMealTime] = useState('BREAKFAST');
+    const [selectedMealTime, setSelectedMealTime] = useState('Bữa sáng');
     const [visible, setVisible] = useState(false);
     const [selectedFoods, setSelectedFoods] = useState([]);
     const [menuName, setMenuName] = useState('');
@@ -33,17 +33,20 @@ const ManageMenus = () => {
         try {
             const token = await AsyncStorage.getItem('token');
             const res = await authApi(token).get(endpoints['store-foods']);
+            console.log('API Response:', res.data);
             setFoods(res.data);
         } catch (error) {
             console.error('Lỗi tải danh sách món:', error);
         }
     };
 
+    useEffect(() => {
+        console.log('Current foods:', foods);
+    }, [foods]);
+
     const handleMealTimeChange = (value) => {
+        console.log('Selected meal time:', value);
         setSelectedMealTime(value);
-        // Lọc các món ăn theo meal_time
-        const foodsForMealTime = foods.filter(food => food.meal_time === value);
-        setSelectedFoods(foodsForMealTime.map(f => f.id));
     };
 
     const toggleFoodSelection = (foodId) => {
@@ -119,7 +122,14 @@ const ManageMenus = () => {
                 </Text>
 
                 <View style={styles.foodList}>
-                    {foods.map(food => (
+                    {foods
+                        .filter(food => {
+                            // Hiển thị món ăn nếu:
+                            // 1. meal_time trùng với bữa được chọn
+                            // 2. hoặc là món có thể dùng cho mọi bữa (Cả ngày)
+                            return food.meal_time === selectedMealTime || food.meal_time === 'Cả ngày';
+                        })
+                        .map(food => (
                         <Card key={food.id} style={[
                             styles.foodCard,
                             selectedFoods.includes(food.id) && styles.selectedCard
@@ -138,7 +148,7 @@ const ManageMenus = () => {
                             <Card.Content>
                                 <View style={styles.chipContainer}>
                                     <Chip icon="clock">
-                                        {MEAL_TIMES.find(m => m.value === food.meal_time)?.label || 'Cả ngày'}
+                                        {food.meal_time}
                                     </Chip>
                                     {food.is_available ? (
                                         <Chip icon="check" style={styles.availableChip}>Còn hàng</Chip>

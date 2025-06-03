@@ -21,6 +21,7 @@ import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
 import ChatScreen from './Components/Chat/ChatScreen';
 import ChatListScreen from './Components/Chat/ChatListScreen';
+import MenuDetail from './Components/Home/MenuDetail';
 import { useNavigation } from '@react-navigation/native';
 
 const Stack = createStackNavigator();
@@ -64,6 +65,7 @@ const HomeStack = () => (
     <Stack.Screen name="Order" component={OrderScreen} options={{ title: "Chi tiết đơn hàng" }} />
     <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Tìm kiếm món ăn" }} />
     <Stack.Screen name="Chat" component={ChatStack} options={{ headerShown: false }} />
+    <Stack.Screen name="MenuDetail" component={MenuDetail} options={{ headerShown: false }} />
   </Stack.Navigator>
 );
 

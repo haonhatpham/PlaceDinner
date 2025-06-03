@@ -191,20 +191,30 @@ const Home = ({ navigation }) => {
       }
 
       const response = await api.get(endpoints.menus);
+      console.log('Menus API Response:', response.data); // Debug log
       
       if (response.data && Array.isArray(response.data)) {
         const formattedMenus = response.data.map(menu => ({
-          ...menu,
-          items_count: menu.items?.length || 0,
+          id: menu.id,
+          name: menu.name || 'Menu không tên',
+          menu_type: menu.menu_type || 'Không xác định',
+          items_count: menu.foods?.length || 0,
           price: menu.total_price || 0,
           average_rating: menu.average_rating || 0,
           store: menu.store || {},
-          image: menu.image || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-menu.png'
+          image: menu.image || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-menu.png',
+          description: menu.description || 'Không có mô tả'
         }));
+        console.log('Formatted Menus:', formattedMenus); // Debug log
         setMenus(formattedMenus);
+      } else {
+        console.log('Invalid menus data format:', response.data);
+        setMenus([]);
       }
     } catch (err) {
       console.error('Menu API Error:', err.message);
+      setMenus([]);
+      setError('Không thể tải danh sách menu');
     }
   };
 
@@ -340,22 +350,35 @@ const Home = ({ navigation }) => {
   );
 
   // Menu Card Component
-  const MenuCard = ({ menu }) => (
-    <TouchableOpacity 
-      style={styles.menuCard}
-      onPress={() => navigation.navigate('MenuDetail', { 
-        id: menu.id,
-        name: menu.name
-      })}
-    >
-      <View style={styles.menuContent}>
-        <Text style={styles.menuTitle}>{menu.name}</Text>
-        <View style={styles.menuInfo}>
-          <Text style={styles.menuItems}>{menu.items_count || 0} món</Text>
+  const MenuCard = ({ menu }) => {
+    console.log('Menu data in MenuCard:', menu); // Debug log để kiểm tra dữ liệu menu
+    
+    return (
+      <TouchableOpacity 
+        style={styles.menuCard}
+        onPress={() => {
+          if (!menu.id) {
+            console.error('Menu ID is missing:', menu);
+            return;
+          }
+          console.log('Navigating to MenuDetail with menuId:', menu.id);
+          navigation.navigate('MenuDetail', { 
+            menuId: menu.id,
+            name: menu.name,
+            menu_type: menu.menu_type
+          });
+        }}
+      >
+        <View style={styles.menuContent}>
+          <Text style={styles.menuTitle}>{menu.name}</Text>
+          <View style={styles.menuInfo}>
+            <Text style={styles.menuType}>{menu.menu_type}</Text>
+            <Text style={styles.menuItems}>{menu.items_count} món</Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (initialLoading) {
     return (
@@ -663,6 +686,15 @@ const styles = StyleSheet.create({
   menuInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  menuType: {
+    fontSize: 14,
+    color: '#666',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
   },
   menuItems: {
     fontSize: 14,

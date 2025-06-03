@@ -2,6 +2,7 @@ import uuid
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, generics, permissions, status, parsers
 from rest_framework.decorators import action, api_view
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.db import transaction
 from .serializers import *
@@ -859,12 +860,12 @@ def admin_stats_view(request):
 
     return render(request, 'admin/stats.html', context)
 
-class MenuViewSet(viewsets.GenericViewSet,generics.CreateAPIView,generics.ListAPIView):
+class MenuViewSet(viewsets.GenericViewSet,generics.ListAPIView):
     queryset = Menu.objects.all()
     serializer_class = MenuSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
-    @action(detail=False, methods=['GET', 'POST'], url_path='my-store',permission_classes=[IsStoreOwner])
+    @action(detail=False, methods=['GET', 'POST'], url_path='my-store',permission_classes=[AllowAny])
     def get_my_store_menus(self, request):
         if request.method == 'GET':
             menus = Menu.objects.filter(store=request.user.account.store)
@@ -881,7 +882,14 @@ class MenuViewSet(viewsets.GenericViewSet,generics.CreateAPIView,generics.ListAP
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
+    @action(detail=True, methods=['GET'], url_path='detail', permission_classes=[AllowAny])
+    def retrieve_my_store_menu(self, request, pk=None):
+        try:
+            menu = Menu.objects.get(id=pk)
+        except Menu.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(menu)
+        return Response(serializer.data)
 
 
 logger = logging.getLogger(__name__)
@@ -973,24 +981,3 @@ class CategoryViewSet(viewsets.ViewSet,generics.ListAPIView):
     queryset = Category.objects.all()
 
 
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .firebase_service import send_message, get_chat_room
-
-@api_view(['POST'])
-def send_chat(request):
-    sender_id = request.user.id
-    receiver_id = request.data.get('receiver_id')
-    message = request.data.get('message')
-
-    room_id = get_chat_room(sender_id, receiver_id)
-    success = send_message(room_id, {
-        'sender_id': str(sender_id),
-        'message': message,
-        'read': False
-    })
-
-    if success:
-        return Response({"status": "Tin nhắn đã gửi"})
-    return Response({"error": "Gửi tin nhắn thất bại"}, status=400)

@@ -31,9 +31,10 @@ export const endpoints = {
     
     'categories': '/categories/',
 
-    // Menu endpoints
+
     'menus': '/menus/',                    
     'store-menus': '/menus/my-store/',    
+    'store-menu-detail': (id) => `/menus/${id}/detail/`,
 
     'create-order': '/orders/',
     'user-orders': '/orders/my-orders/',

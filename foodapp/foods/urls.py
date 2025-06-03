@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from foods.views import *
 from django.contrib.auth.views import LoginView, LogoutView
-from .views import send_chat
+
 from foods.webhook import momo_webhook_view
 
 router = DefaultRouter()
@@ -22,5 +22,5 @@ urlpatterns = [
     path('momo/webhook/', momo_webhook_view, name='momo-webhook'),
     # thống kê nằm ở đây
     path("admin/stats/", admin_stats_view, name="admin-stats"),
-    path('api/chat/send/', send_chat),
+
 ]
