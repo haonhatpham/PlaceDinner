@@ -19,6 +19,7 @@ router.register('categories', CategoryViewSet, basename='category')
 urlpatterns = [
     path('', include(router.urls)),  # Sử dụng router
     path('momo/webhook/', momo_webhook_view, name='momo-webhook'),
+    path('payments/create/', create_momo_payment, name='create_momo_payment'),
     # thống kê nằm ở đây
     path("admin/stats/", admin_stats_view, name="admin-stats"),
 
