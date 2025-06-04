@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Searchbar, Chip } from 'react-native-paper';
 import api, { endpoints, authApi } from '../../configs/Apis';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 const Home = ({ navigation }) => {
   // States cho Featured Restaurants
@@ -30,6 +31,18 @@ const Home = ({ navigation }) => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [menus, setMenus] = useState([]);
+
+  // Sử dụng useFocusEffect để tải lại dữ liệu khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Home screen focused, refreshing data...');
+      // Reset page và dishes để load lại từ đầu khi màn hình được focus
+      setPage(1);
+      setDishes([]);
+      setHasMore(true); // Reset hasMore
+      // loadDishes sẽ được gọi bởi useEffect theo dõi page
+    }, [])
+  );
 
   // Load Featured Restaurants
   const fetchFeaturedRestaurants = async () => {

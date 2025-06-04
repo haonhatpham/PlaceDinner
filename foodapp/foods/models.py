@@ -82,7 +82,7 @@ class Food(BaseModel):
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='foods')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     name = models.CharField(max_length=255)
-    description = RichTextField()
+    description = RichTextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image = CloudinaryField('food_image')
     meal_time = models.CharField(max_length=10, choices=MealTime.choices, default=MealTime.ANYTIME)

@@ -105,7 +105,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': 'hieu',
+        'PASSWORD': '1234',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -173,8 +173,8 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
-CLIENT_ID_Hao= 'GYMVhxDK017oLOQZSalsKiQGs1DZBD4rLDe5ICf6'
-CLIENT_SECRET_Hao="SGIlxqCthtXmDNfZSagQjq3j5nIZcvgLIAZpT3cs5nCD03ieVNCW1QsK0ti0AJIWnysESlqRBleReivXqSCFxytURpVB6xqS5RildGoYH1MTqSHqTKjbtXZJc6Tx9NI9"
+CLIENT_ID_Hao= 'TpHW7RxLEyEw41LWSeRQVqYADyqDPJQPocKm9YW8'
+CLIENT_SECRET_Hao="Yskk6I2YlLK8Yu6Nhfn1Kf6LvWzg0fHoRH7Fj79HPRID5PtswU3azGnjC6HqOMBguWdHIpq1DGo9zcfNbxoUjvkE8COj3aMi1XPWWKFkuNoA7BXJrKgG3dyhnWSU03If"
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

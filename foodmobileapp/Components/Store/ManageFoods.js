@@ -138,8 +138,10 @@ const ManageFoods = () => {
     const loadFoods = async () => {
         if (!user || !user.store) return;
         try {
+            console.log('Đang tải danh sách món ăn...');
             const token = await AsyncStorage.getItem('token');
             const res = await authApi(token).get(endpoints['store-foods']);
+            console.log('Tải danh sách món ăn thành công.', res.data);
             setFoods(res.data);
         } catch (error) {
             console.error('Lỗi tải danh sách món:', error);
@@ -185,7 +187,11 @@ const ManageFoods = () => {
 
             setFood({
                 ...foodToEdit,
-                food_image: null,
+                // Khi sửa, sử dụng ID của category cho Picker
+                category: foodToEdit.category ? foodToEdit.category.id : '',
+                // Giữ lại ảnh cũ nếu có, food_image chỉ dùng cho ảnh mới
+                image: foodToEdit.image, // Giữ lại URL ảnh cũ
+                food_image: null, // Reset food_image (cho ảnh mới được chọn)
                 meal_time: validMealTime,
                 // Giữ nguyên giá trị từ backend nếu có, nếu không thì dùng mặc định
                 available_from: foodToEdit.available_from || MEAL_TIME_RANGES[validMealTime].start,
@@ -411,17 +417,22 @@ const ManageFoods = () => {
                         >
                             <View style={styles.imageContainer}>
                                 {food.food_image ? (
-                                    <Image 
-                                        source={{ uri: food.food_image.uri }} 
-                                        style={styles.foodImage} 
+                                    <Image
+                                        source={{ uri: food.food_image.uri }}
+                                        style={styles.foodImage}
+                                    />
+                                ) : food.image ? (
+                                    <Image
+                                        source={{ uri: food.image }}
+                                        style={styles.foodImage}
                                     />
                                 ) : (
                                     <View style={styles.placeholderImage}>
                                         <Text>Chưa có ảnh</Text>
                                     </View>
                                 )}
-                                <Button 
-                                    mode="contained" 
+                                <Button
+                                    mode="contained"
                                     onPress={pickImage}
                                     style={styles.imageButton}
                                 >

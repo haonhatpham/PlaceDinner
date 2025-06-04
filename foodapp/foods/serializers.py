@@ -130,35 +130,6 @@ class ReviewSerializer(serializers.ModelSerializer):
         data['rating_display'] = instance.get_rating_display()
         return data
 
-class FoodSerializer(serializers.ModelSerializer):
-    reviews = ReviewSerializer(many=True, read_only=True)  # Thêm dòng này
-
-    class Meta:
-        model = Food
-        fields = '__all__'
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        # Hiển thị thông tin category và meal_time dạng text thay vì value
-        data['category'] = CategorySerializer(instance.category).data if instance.category else None
-        data['meal_time'] = instance.get_meal_time_display()
-
-
-        if instance.image:
-            data['image'] = instance.image.url if hasattr(instance.image, 'url') else str(instance.image)
-        else:
-            data['image'] = ''  # Hoặc URL ảnh mặc định
-        return data
-
-
-# class NotificationSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Notification
-#         fields = '__all__'
-#         read_only_fields = ('account',)
-
-
-
 
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:
@@ -187,7 +158,26 @@ class StoreSerializer(serializers.ModelSerializer):
                 store=obj
             ).exists()
         return False
+class FoodSerializer(serializers.ModelSerializer):
+    reviews = ReviewSerializer(many=True, read_only=True)
+    store = StoreSerializer(read_only=True)
 
+    class Meta:
+        model = Food
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Hiển thị thông tin category và meal_time dạng text thay vì value
+        data['category'] = CategorySerializer(instance.category).data if instance.category else None
+        # data['meal_time'] = instance.get_meal_time_display() # <-- Comment out this line
+
+
+        if instance.image:
+            data['image'] = instance.image.url if hasattr(instance.image, 'url') else str(instance.image)
+        else:
+            data['image'] = ''  # Hoặc URL ảnh mặc định
+        return data
 class MenuSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu

@@ -209,7 +209,11 @@ const OrderScreen = ({ route, navigation }) => {
       
       console.info(orderItems[0]?.store_id );
       // Lấy store_id từ món đầu tiên, hoặc dùng ID mặc định nếu không có
-      const storeId = orderItems[0]?.store_id || 1;
+      // Đảm bảo storeId là số nguyên
+      const rawStoreInfo = orderItems[0]?.store_id;
+      const storeId = typeof rawStoreInfo === 'object' && rawStoreInfo !== null
+                      ? rawStoreInfo.id // Nếu là object, lấy ID
+                      : rawStoreInfo || 1; // Nếu không phải object (hy vọng là số), dùng giá trị đó hoặc mặc định 1
 
       setCreatingOrder(true);
 
@@ -238,7 +242,6 @@ const OrderScreen = ({ route, navigation }) => {
       if (isFromCart) {
         await AsyncStorage.removeItem('cart');
       }
-
       return response;
     } catch (error) {
       console.error('Create Order Error:', error);

@@ -18,6 +18,19 @@ import { MyUserContext } from '../../configs/Contexts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReviewSection from './ReviewSection';
 
+// Helper function to get meal time label (updated to handle string values)
+const getMealTimeLabel = (mealTimeStr) => {
+  if (!mealTimeStr) return "Không xác định"; // Handle null/undefined
+  switch (mealTimeStr.toUpperCase()) { // Convert to uppercase for case-insensitive comparison
+    case 'BREAKFAST': return "Bữa sáng";
+    case 'LUNCH': return "Bữa trưa";
+    case 'DINNER': return "Bữa tối";
+    case 'SNACK': return "Bữa phụ"; // (Or "Bữa chiều" if you prefer)
+    // Add other cases if needed (e.g., 'BRUNCH', 'SUPPER')
+    default: return "Không xác định"; // Fallback for unknown values
+  }
+};
+
 const DishDetail = ({ route, navigation }) => {
   // Kiểm tra và lấy params
   if (!route || !route.params || !route.params.id) {
@@ -50,6 +63,7 @@ const DishDetail = ({ route, navigation }) => {
       setLoading(true);
       const response = await api.get(endpoints.food_detail(id));
       setFood(response.data);
+      console.log('food.store data:', response.data);
     } catch (err) {
       console.error('Food Detail Error:', err);
       setError('Không thể tải thông tin món ăn');
@@ -250,7 +264,7 @@ const DishDetail = ({ route, navigation }) => {
         <View style={styles.mainInfoContainer}>
           <Text style={styles.foodName}>{food.name}</Text>
           <Text style={styles.foodPrice}>
-            {food.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+            {parseFloat(food.price)?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
           </Text>
           
           {food.average_rating && (
@@ -260,21 +274,56 @@ const DishDetail = ({ route, navigation }) => {
               <Text style={styles.reviewCount}>({food.review_count || 0} đánh giá)</Text>
             </View>
           )}
+
+          {/* Thêm trạng thái Còn hàng/Hết hàng */}
+          <Text style={[styles.statusText, { color: food.active ? 'green' : 'red' }]}>
+            Trạng thái: {food.active ? 'Còn hàng' : 'Hết hàng'}
+          </Text>
+
+          {/* Thêm buổi bán */}
+          {food.meal_time !== undefined && (
+             <Text style={styles.mealTimeText}>
+               Buổi bán: {getMealTimeLabel(food.meal_time)}
+             </Text>
+          )}
+
+          {/* Thêm thời gian bán cụ thể nếu có (Hiện tại API chưa trả về trường này) */}
+          {/* <Text style={styles.sellingTimeText}>
+            Thời gian bán: 08:00 - 20:00 (Ví dụ)
+          </Text> */}
+
         </View>
 
         {/* Thông tin cửa hàng */}
         {food.store && (
           <TouchableOpacity 
             style={styles.storeContainer}
-            onPress={() => navigation.navigate('StoreDetail', { 
-              id: food.store.id,
-              name: food.store.name
-            })}
+            onPress={() => {
+              // Kiểm tra nếu food.store là một đối tượng và có id
+              if (typeof food.store === 'object' && food.store !== null && food.store.id) {
+                 navigation.navigate('StoreDetail', { 
+                   id: food.store.id,
+                   name: food.store.name // Vẫn truyền tên nếu có
+                 });
+              } else if (food.store) { // Nếu chỉ là ID
+                 navigation.navigate('StoreDetail', { 
+                   id: food.store,
+                   name: food.store?.name // Dùng optional chaining phòng trường hợp không có tên
+                 });
+              } else {
+                  console.warn("Không có thông tin cửa hàng để chuyển hướng.");
+              }
+            }}
           >
             <Icon name="store" size={24} color="#555" />
             <View style={styles.storeInfo}>
-              <Text style={styles.storeName}>{food.store.name}</Text>
-              <Text style={styles.storeAddress} numberOfLines={2}>{food.store.address}</Text>
+              {/* Chỉ hiển thị tên và địa chỉ nếu food.store là object đầy đủ */}
+              {typeof food.store === 'object' && food.store !== null && food.store.name && (
+                 <Text style={styles.storeName}>{food.store.name}</Text>
+              )}
+               {typeof food.store === 'object' && food.store !== null && food.store.address && (
+                 <Text style={styles.storeAddress} numberOfLines={2}>{food.store.address}</Text>
+              )}
             </View>
             <Icon name="chevron-right" size={24} color="#555" />
           </TouchableOpacity>
@@ -531,6 +580,14 @@ const styles = StyleSheet.create({
   errorButton: {
     marginTop: 10,
     backgroundColor: '#2196F3',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#777',
+  },
+  mealTimeText: {
+    fontSize: 14,
+    color: '#777',
   },
 });
 
