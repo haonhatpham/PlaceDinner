@@ -151,11 +151,11 @@ class FoodSerializer(serializers.ModelSerializer):
         return data
 
 
-class NotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notification
-        fields = '__all__'
-        read_only_fields = ('account',)
+# class NotificationSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Notification
+#         fields = '__all__'
+#         read_only_fields = ('account',)
 
 
 

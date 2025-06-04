@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 # Import signal post_save: được "phát ra" mỗi khi một instance của model được lưu (create hoặc update)
 from django.dispatch import receiver
-from .models import Food, Notification,Menu
+from .models import Food,Menu
 from .tasks import send_new_dish_notification,send_new_menu_notification
 from celery import group
 import logging
@@ -17,13 +17,13 @@ def notify_followers(sender, instance, created, **kwargs):
             
             for follow in followers:
                 # Tạo thông báo trong database
-                notification = Notification.objects.create(
-                    account=follow.customer,
-                    title=f"Món mới tại {instance.store.name}",
-                    message=f"{instance.name} - {instance.price}",
-                    notification_type='NEW_FOOD',
-                    related_id=instance.id
-                )
+                # notification = Notification.objects.create(
+                #     account=follow.customer,
+                #     title=f"Món mới tại {instance.store.name}",
+                #     message=f"{instance.name} - {instance.price}",
+                #     notification_type='NEW_FOOD',
+                #     related_id=instance.id
+                # )
                 
                 # Thêm task gửi email vào danh sách
                 if follow.customer.user.email:
@@ -53,13 +53,13 @@ def notify_followers_new_menu(sender, instance, created, **kwargs):
     if created:
         followers = instance.store.followers.all()
         for follow in followers:
-            Notification.objects.create(
-                account=follow.customer,
-                title=f"Menu mới tại {instance.store.name}",
-                message=f"{instance.name} ({instance.get_menu_type_display()}) đã được thêm!",
-                notification_type='NEW_MENU',
-                related_id=instance.id
-            )
+            # Notification.objects.create(
+            #     account=follow.customer,
+            #     title=f"Menu mới tại {instance.store.name}",
+            #     message=f"{instance.name} ({instance.get_menu_type_display()}) đã được thêm!",
+            #     notification_type='NEW_MENU',
+            #     related_id=instance.id
+            # )
             # Gọi task nếu bạn có (giống như send_new_dish_notification)
             if follow.customer.user.email:
                 send_new_menu_notification.delay(

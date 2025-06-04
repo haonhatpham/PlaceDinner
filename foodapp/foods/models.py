@@ -199,16 +199,3 @@ class Follow(BaseModel):
 
     def __str__(self):
         return f"{self.customer} follows {self.store}"
-
-
-
-class Notification(BaseModel):
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='notifications')
-    title = models.CharField(max_length=255)
-    message = models.TextField()
-    is_read = models.BooleanField(default=False)
-    notification_type = models.CharField(max_length=50)# 'NEW_FOOD', 'NEW_MENU',...
-    related_id = models.PositiveIntegerField(null=True, blank=True)
-
-    def __str__(self):
-        return self.title

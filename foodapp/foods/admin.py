@@ -66,10 +66,10 @@ class ReviewAdmin(admin.ModelAdmin):
     list_filter = ['rating', 'store']
 
 # Đăng ký model Notification vào Admin
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ['account', 'message', 'created_date', 'is_read']
-    search_fields = ['account__user__username', 'message']
-    list_filter = ['is_read']
+# class NotificationAdmin(admin.ModelAdmin):
+#     list_display = ['account', 'message', 'created_date', 'is_read']
+#     search_fields = ['account__user__username', 'message']
+#     list_filter = ['is_read']
 
 # Đăng ký model Follow vào Admin
 class FollowAdmin(admin.ModelAdmin):
@@ -89,4 +89,4 @@ my_admin_site.register(Order, OrderAdmin)
 my_admin_site.register(OrderItem, OrderItemAdmin)
 my_admin_site.register(Review, ReviewAdmin)
 my_admin_site.register(Follow, FollowAdmin)
-my_admin_site.register(Notification, NotificationAdmin)
+# my_admin_site.register(Notification, NotificationAdmin)

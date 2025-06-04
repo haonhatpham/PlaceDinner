@@ -329,7 +329,7 @@ const Home = ({ navigation }) => {
       <Image source={{ uri: item.image }} style={styles.dishImage} />
       <View style={styles.dishContent}>
         <Text style={styles.dishTitle}>{item.name}</Text>
-        <Text style={styles.dishPrice}>{item.price?.toLocaleString('vi-VN')}đ</Text>
+        <Text style={styles.dishPrice}>{parseFloat(item.price)?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</Text>
         <Text style={styles.dishRestaurant}>{item.restaurant_name}</Text>
         {/* Rating */}
         <View style={styles.ratingContainer}>

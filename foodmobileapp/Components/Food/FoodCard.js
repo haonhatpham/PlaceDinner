@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-const cardWidth = (width - 30) / 2; // 2 cột, padding 10 mỗi bên
+const cardWidth = (width - 20);
 
 const FoodCard = ({ food, onPress }) => {
     return (
@@ -25,7 +25,7 @@ const FoodCard = ({ food, onPress }) => {
                     {food.name}
                 </Text>
                 <Text style={styles.price}>
-                    {food.price.toLocaleString('vi-VN')}đ
+                    {food.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
                 </Text>
                 <View style={styles.storeContainer}>
                     <Ionicons name="restaurant-outline" size={14} color="#666" />
@@ -47,6 +47,7 @@ const FoodCard = ({ food, onPress }) => {
 const styles = StyleSheet.create({
     container: {
         width: cardWidth,
+        flexDirection: 'row',
         backgroundColor: '#fff',
         borderRadius: 10,
         marginBottom: 10,
@@ -58,15 +59,16 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 3,
         elevation: 3,
+        overflow: 'hidden',
     },
     image: {
-        width: '100%',
-        height: cardWidth * 0.75, // Tỷ lệ 4:3
-        borderTopLeftRadius: 10,
-        borderTopRightRadius: 10,
+        width: 100,
+        height: 100,
     },
     infoContainer: {
+        flex: 1,
         padding: 10,
+        justifyContent: 'center',
     },
     name: {
         fontSize: 16,

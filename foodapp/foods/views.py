@@ -591,24 +591,24 @@ class ReviewDetailView(viewsets.ViewSet, generics.UpdateAPIView, generics.Destro
         return review
 
 
-class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
-    serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+# class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
+#     serializer_class = NotificationSerializer
+#     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return Notification.objects.filter(account=self.request.user.account).order_by('-created_date')
+#     def get_queryset(self):
+#         return Notification.objects.filter(account=self.request.user.account).order_by('-created_date')
 
-    @action(detail=True, methods=['post'])
-    def mark_as_read(self, request, pk=None):
-        notification = get_object_or_404(Notification, pk=pk)
-        notification.is_read = True
-        notification.save()
-        return Response({'status': 'Đã đánh dấu là đã đọc'})
+#     @action(detail=True, methods=['post'])
+#     def mark_as_read(self, request, pk=None):
+#         notification = get_object_or_404(Notification, pk=pk)
+#         notification.is_read = True
+#         notification.save()
+#         return Response({'status': 'Đã đánh dấu là đã đọc'})
 
-    @action(detail=False, methods=['post'])
-    def mark_all_as_read(self, request):
-        Notification.objects.filter(account=request.user.account, is_read=False).update(is_read=True)
-        return Response({'status': 'Đã đánh dấu tất cả là đã đọc'})
+#     @action(detail=False, methods=['post'])
+#     def mark_all_as_read(self, request):
+#         Notification.objects.filter(account=request.user.account, is_read=False).update(is_read=True)
+#         return Response({'status': 'Đã đánh dấu tất cả là đã đọc'})
 
 
 class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView):

@@ -334,7 +334,23 @@ const ManageFoods = () => {
                             <Card.Cover source={{ uri: food.food_image || food.image }} />
                             <Card.Title 
                                 title={food.name}
-                                subtitle={`${food.price.toLocaleString('vi-VN')}đ`}
+                                subtitle={
+                                    <Text>
+                                        Giá: {food.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                    </Text>
+                                }
+                                right={(props) => (
+                                    <View style={MyStyles.row}>
+                                        <TextInput
+                                            label="Giá*"
+                                            value={food.price ? food.price.toString() : ''}
+                                            onChangeText={(text) => setFood({ ...food, price: text.replace(/[^0-9.]/g, '') })}
+                                            keyboardType="numeric"
+                                            style={MyStyles.input}
+                                            error={!food.price && !food.id}
+                                        />
+                                    </View>
+                                )}
                             />
                             <Card.Content>
                                 <Text>{food.description}</Text>
@@ -422,7 +438,7 @@ const ManageFoods = () => {
                             <TextInput
                                 label="Giá"
                                 value={food.price}
-                                onChangeText={text => setFood({...food, price: text})}
+                                onChangeText={(text) => setFood({ ...food, price: text.replace(/[^0-9.]/g, '') })}
                                 keyboardType="numeric"
                                 style={styles.input}
                             />

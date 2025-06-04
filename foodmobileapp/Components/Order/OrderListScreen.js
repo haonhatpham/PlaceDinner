@@ -221,7 +221,7 @@ const OrderListScreen = ({ navigation }) => {
               />
               <View style={styles.cartItemInfo}>
                 <Text style={styles.cartItemName}>{item.name}</Text>
-                <Text style={styles.cartItemPrice}>{item.price?.toLocaleString('vi-VN')}đ</Text>
+                <Text style={styles.cartItemPrice}>{item.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</Text>
                 {item.store_name && (
                   <Text style={styles.cartItemStore}>{item.store_name}</Text>
                 )}
@@ -261,7 +261,7 @@ const OrderListScreen = ({ navigation }) => {
         <View style={styles.cartFooter}>
           <View style={styles.cartTotal}>
             <Text style={styles.cartTotalLabel}>Tổng cộng:</Text>
-            <Text style={styles.cartTotalAmount}>{totalAmount.toLocaleString('vi-VN')}đ</Text>
+            <Text style={styles.cartTotalAmount}>{totalAmount?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</Text>
           </View>
           <Button 
             mode="contained" 
@@ -331,7 +331,7 @@ const OrderListScreen = ({ navigation }) => {
                 {user.role === 'Chủ cửa hàng' && (
                   <Text style={styles.orderCustomer}>Khách hàng: {item.customer_name || 'Khách hàng'}</Text>
                 )}
-                <Text style={styles.orderTotal}>Tổng tiền: {item.total_amount?.toLocaleString('vi-VN')}đ</Text>
+                <Text style={styles.orderTotal}>Tổng tiền: {item.total_amount?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</Text>
               </TouchableOpacity>
             )}
             ItemSeparatorComponent={() => <Divider />}

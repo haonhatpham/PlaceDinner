@@ -6,7 +6,6 @@ import { useContext, useReducer } from "react";
 import Home from "./Components/Home/Home";
 import OrderListScreen from "./Components/Order/OrderListScreen";
 import OrderScreen from "./Components/Order/OrderScreen";
-import NotificationScreen from "./Components/Notification/NotificationScreen";
 import Login from "./Components/User/Login";
 import Register from "./Components/User/Register";
 import Profile from "./Components/User/Profile";
@@ -139,14 +138,6 @@ const TabNavigator = () => {
         options={{
           title: "Đơn hàng",
           tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="receipt" />,
-        }}
-      />
-      <Tab.Screen
-        name="Thông báo"
-        component={NotificationScreen}
-        options={{
-          title: "Thông báo",
-          tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="bell" />,
         }}
       />
       {user === null ? (

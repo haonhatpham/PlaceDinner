@@ -249,7 +249,9 @@ const DishDetail = ({ route, navigation }) => {
         {/* Thông tin chính của món ăn */}
         <View style={styles.mainInfoContainer}>
           <Text style={styles.foodName}>{food.name}</Text>
-          <Text style={styles.foodPrice}>{food.price?.toLocaleString('vi-VN')}đ</Text>
+          <Text style={styles.foodPrice}>
+            {food.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+          </Text>
           
           {food.average_rating && (
             <View style={styles.ratingContainer}>

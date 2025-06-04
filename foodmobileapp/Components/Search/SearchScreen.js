@@ -234,7 +234,7 @@ const SearchScreen = () => {
         <FlatList
           data={foods}
           renderItem={({ item }) => <FoodCard food={item} onPress={() => console.log('Navigate to food detail', item.id)} />}
-          keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+          keyExtractor={(item, index) => item.id ? `${item.id}-${index}` : index.toString()}
           contentContainerStyle={styles.resultsList}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
@@ -258,84 +258,97 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 10,
+    paddingTop: 0,
   },
   searchBarContainer: {
     flexDirection: 'row',
-    marginBottom: 10,
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    alignItems: 'center',
   },
   searchInput: {
     flex: 1,
     height: 40,
-    borderColor: '#ccc',
+    borderColor: '#ddd',
     borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 15,
     marginRight: 10,
   },
   searchButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 20,
+    padding: 8,
   },
   filtersScrollView: {
-     marginBottom: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
   },
   filtersRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-   pickerContainer: {
-    marginRight: 10,
-    borderColor: '#ccc',
+  pickerContainer: {
+    borderColor: '#ddd',
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 20,
+    marginRight: 10,
     overflow: 'hidden',
-    paddingHorizontal: 10,
-   },
-   picker: {
-    height: 40,
-    width: 120,
-   },
-   priceFilterContainer: {
+    justifyContent: 'center',
+    minWidth: 120,
+    height: 50,
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  priceFilterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 0,
-    marginRight: 10,
-    borderColor: '#ccc',
+    borderColor: '#ddd',
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 20,
     paddingHorizontal: 10,
-   },
-  priceInput: {
-    flex: 1,
+    marginRight: 10,
     height: 40,
-    borderRadius: 5,
+  },
+  priceInput: {
+    width: 60,
+    textAlign: 'center',
   },
   priceSeparator: {
     marginHorizontal: 5,
+    fontSize: 16,
+    color: '#666',
   },
-   resetButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#e0e0e0',
-    paddingHorizontal: 15,
-    height: 40,
-    borderRadius: 5,
-   },
-   resetButtonText: {
-    color: '#666',
-   },
-   resultCountText: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 10,
+  filterButton: {
+    padding: 8,
+    backgroundColor: '#007BFF',
+    borderRadius: 20,
+  },
+  filterButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  resetButton: {
+     padding: 8,
+     backgroundColor: '#DC3545',
+     borderRadius: 20,
+  },
+  resetButtonText: {
+      color: '#fff',
+      fontWeight: 'bold',
+  },
+  resultCountText: {
     paddingHorizontal: 10,
-   },
+    paddingVertical: 5,
+    fontSize: 14,
+    color: '#666',
+  },
   resultsList: {
     flexGrow: 1,
+    paddingHorizontal: 10,
   },
   resultItem: {
     padding: 10,
