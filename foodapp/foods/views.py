@@ -22,6 +22,7 @@ import logging
 from foods import paginators
 from datetime import timedelta
 from decimal import Decimal
+from .dao import get_store_stats
 
 
 
@@ -288,299 +289,6 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
 
-    @action(detail=True, methods=['get'], url_path='revenue/food/(?P<food_id>[^/.]+)/month')
-    def revenue_food_month(self, request, pk=None, food_id=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            year = int(request.query_params.get('year'))
-            month = int(request.query_params.get('month'))
-
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year,
-                created_date__month=month
-            )
-
-            total_revenue = 0
-            total_orders = 0
-
-            for order in orders:
-                items = order.items.filter(food_id=food_id)
-                if items.exists():
-                    total_orders += 1
-                    for item in items:
-                        total_revenue += item.quantity * item.price
-
-            return Response({
-                "store": store.name,
-                "food_id": food_id,
-                "month": month,
-                "year": year,
-                "total_orders": total_orders,
-                "revenue": total_revenue
-            })
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=True, methods=['get'], url_path='revenue/food/(?P<food_id>[^/.]+)/year')
-    def revenue_food_year(self, request, pk=None, food_id=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            year = int(request.query_params.get('year'))
-
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year
-            )
-
-            total_revenue = 0
-            total_orders = 0
-
-            for order in orders:
-                items = order.items.filter(food_id=food_id)
-                if items.exists():
-                    total_orders += 1
-                    for item in items:
-                        total_revenue += item.quantity * item.price
-
-            return Response({
-                "store": store.name,
-                "food_id": food_id,
-                "year": year,
-                "total_orders": total_orders,
-                "total_revenue": total_revenue
-            })
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=True, methods=['get'], url_path='revenue/food/(?P<food_id>[^/.]+)/quarter')
-    def revenue_food_quarter(self, request, pk=None, food_id=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            year = int(request.query_params.get('year'))
-            quarter = int(request.query_params.get('quarter'))
-
-            if quarter == 1:
-                start_month, end_month = 1, 3
-            elif quarter == 2:
-                start_month, end_month = 4, 6
-            elif quarter == 3:
-                start_month, end_month = 7, 9
-            elif quarter == 4:
-                start_month, end_month = 10, 12
-            else:
-                return Response({'error': 'Quý không hợp lệ'}, status=status.HTTP_400_BAD_REQUEST)
-
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year,
-                created_date__month__gte=start_month,
-                created_date__month__lte=end_month
-            )
-
-            total_revenue = 0
-            total_orders = 0
-
-            for order in orders:
-                items = order.items.filter(food_id=food_id)
-                if items.exists():
-                    total_orders += 1
-                    for item in items:
-                        total_revenue += item.quantity * item.price
-
-            return Response({
-                "store": store.name,
-                "food_id": food_id,
-                "year": year,
-                "quarter": quarter,
-                "total_orders": total_orders,
-                "revenue": total_revenue
-            })
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=True, methods=['get'], url_path='revenue/month')
-    def revenue_month(self, request, pk=None):
-        try:
-            store = Store.objects.get(pk=pk)
-
-            year = int(request.query_params.get('year'))
-            month = int(request.query_params.get('month'))
-
-            # Lọc đơn hàng đã hoàn thành trong tháng và năm
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year,
-                created_date__month=month
-            )
-
-            # Tính tổng doanh thu
-            total_revenue = 0
-            for order in orders:
-                for item in order.items.all():
-                    total_revenue += item.quantity * item.price
-
-            # Trả về kết quả
-            return Response({
-                "store": store.name,
-                "month": month,
-                "year": year,
-                "total_orders": orders.count(),
-                "total_revenue": total_revenue
-            })
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=True, methods=['get'], url_path='revenue/year')
-    def revenue_year(self, request, pk=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            year = int(request.query_params.get('year'))
-
-            # Lọc các đơn hàng đã hoàn thành trong năm
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year
-            )
-
-            total_orders = orders.count()
-            total_revenue = 0
-
-            for order in orders:
-                for item in order.items.all():
-                    total_revenue += item.quantity * item.price
-
-            return Response({
-                "store": store.name,
-                "year": year,
-                "total_orders": total_orders,
-                "total_revenue": total_revenue
-            })
-
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=True, methods=['get'], url_path='revenue/quarter')
-    def revenue_quarter(self, request, pk=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            year = int(request.query_params.get('year'))
-            quarter = int(request.query_params.get('quarter'))
-
-            # Xác định tháng bắt đầu và kết thúc theo quý
-            if quarter == 1:
-                start_month, end_month = 1, 3
-            elif quarter == 2:
-                start_month, end_month = 4, 6
-            elif quarter == 3:
-                start_month, end_month = 7, 9
-            elif quarter == 4:
-                start_month, end_month = 10, 12
-            else:
-                return Response({'error': 'Quý không hợp lệ'}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Lọc các đơn hàng đã hoàn thành trong quý
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year,
-                created_date__month__gte=start_month,
-                created_date__month__lte=end_month
-            )
-
-            total_orders = orders.count()
-            total_revenue = 0
-
-            for order in orders:
-                for item in order.items.all():
-                    total_revenue += item.quantity * item.price
-
-            return Response({
-                "store": store.name,
-                "year": year,
-                "quarter": quarter,
-                "total_orders": total_orders,
-                "total_revenue": total_revenue
-            })
-
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=True, methods=['get'], url_path='revenue/category/(?P<category_id>[^/.]+)/year')
-    def revenue_category_year(self, request, pk=None, category_id=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            year = int(request.query_params.get('year'))
-
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year
-            )
-
-            total_revenue = 0
-            total_orders = 0
-
-            for order in orders:
-                items = order.items.filter(food__category_id=category_id)
-                order_total = sum(item.quantity * item.price for item in items)
-                if order_total > 0:
-                    total_orders += 1
-                    total_revenue += order_total
-
-            return Response({
-                "store": store.name,
-                "category_id": category_id,
-                "year": year,
-                "total_orders": total_orders,
-                "total_revenue": total_revenue
-            })
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=True, methods=['get'], url_path='revenue/category/(?P<category_id>[^/.]+)/month')
-    def revenue_category_month(self, request, pk=None, category_id=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            year = int(request.query_params.get('year'))
-            month = int(request.query_params.get('month'))
-
-            # Lấy tất cả các Order đã hoàn thành của cửa hàng trong tháng và năm
-            orders = Order.objects.filter(
-                store=store,
-                status=Order.Status.COMPLETED,
-                created_date__year=year,
-                created_date__month=month,
-                items__food__category_id=category_id  # liên kết qua OrderItem -> Food -> Category
-            ).distinct()
-
-            # Tính tổng số đơn
-            total_orders = orders.count()
-
-            # Tính tổng doanh thu từ các OrderItem thuộc category
-            total_revenue = 0
-            for order in orders:
-                for item in order.items.filter(food__category_id=category_id):
-                    total_revenue += item.quantity * item.price
-
-            return Response({
-                "store": store.name,
-                "category_id": category_id,
-                "year": year,
-                "month": month,
-                "total_orders": total_orders,
-                "total_revenue": total_revenue
-            })
-
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='my-store', permission_classes=[permissions.IsAuthenticated])
     def my_store(self, request):
@@ -990,5 +698,37 @@ class CategoryViewSet(viewsets.ViewSet,generics.ListAPIView):
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
     queryset = Category.objects.all()
+
+
+class StoreStatsViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = StoreStatsSerializer
+
+    def get_permissions(self):
+        if self.action == 'list':
+            return [permissions.IsAuthenticated()]
+        return super().get_permissions()
+
+    def list(self, request):
+        store_id = request.query_params.get('store_id')
+        period = request.query_params.get('period', 'month')
+        year = request.query_params.get('year')
+
+        if not store_id:
+            return Response(
+                {"error": "store_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if user is store owner or admin
+        store = get_object_or_404(Store, id=store_id)
+        if not (request.user.is_staff or (hasattr(request.user, 'account') and store.account == request.user.account)):
+            return Response(
+                {"error": "You don't have permission to view these statistics"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        stats = get_store_stats(store_id, period, year)
+        return Response(stats)
 
 

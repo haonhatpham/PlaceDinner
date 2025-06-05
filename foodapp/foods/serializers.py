@@ -271,3 +271,12 @@ class OrderSerializer(serializers.ModelSerializer):
 
         return order
 
+class StoreStatsSerializer(serializers.Serializer):
+    period = serializers.DateTimeField()
+    total_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total_orders = serializers.IntegerField()
+    food_name = serializers.CharField(required=False)
+    food_category = serializers.CharField(required=False)
+    total_sold = serializers.IntegerField(required=False)
+    revenue = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+
