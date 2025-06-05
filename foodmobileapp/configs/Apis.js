@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Cấu hình base URL cho API
-export const BASE_URL = 'http://192.168.100.22:8000';
+export const BASE_URL = 'http://192.168.100.86:8000';
 
 // Hàm xử lý URL ảnh
 export const getImageUrl = (imagePath) => {
@@ -44,19 +44,10 @@ export const endpoints = {
     'confirm-order':(id) => `/orders/${id}/confirm/`,
     'deliver-order':(id) => `/orders/${id}/deliver/`,
 
-    'store-stats': (id) => `/stores/${id}/stats/`,
-    'store-revenue': (id) => `/stores/${id}/revenue/`,
-    'store-foods-stats': (id) => `/stores/${id}/foods/stats/`,
-    'store-categories-stats': (id) => `/stores/${id}/categories/stats/`,
-    'store-orders-stats': (id) => `/stores/${id}/orders/stats/`,
-    'store-revenue-stats': (id) => `/stores/${id}/revenue/stats/`,
-    'store-foods-revenue': (id) => `/stores/${id}/foods/revenue/`,
-    'store-categories-revenue': (id) => `/stores/${id}/categories/revenue/`,
-    'store-orders-revenue': (id) => `/stores/${id}/orders/revenue/`,
-    'store-revenue-revenue': (id) => `/stores/${id}/revenue/revenue/`,
     'update-order-status': (orderId) => `/store/orders/${orderId}/status/`,
     'create-payment': '/payments/create/',
     'momo-webhook': '/momo/webhook/',
+    'store-stats': (storeId) => `/store-stats/?store_id=${storeId}`,
 }; 
 
 export const authApi = (token) => {

@@ -15,16 +15,20 @@ import ManageFoods from "./Components/Store/ManageFoods";
 import ManageMenus from "./Components/Store/ManageMenus";
 import StoreOrders from "./Components/Store/StoreOrders";
 import StoreDetail from "./Components/Store/StoreDetail";
-import RevenueStats from "./Components/Statistics/RevenueStats";
 import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
 import ChatScreen from './Components/Chat/ChatScreen';
 import ChatListScreen from './Components/Chat/ChatListScreen';
 import MenuDetail from './Components/Home/MenuDetail';
 import { useNavigation } from '@react-navigation/native';
+import StoreStatsScreen from './Components/StoreStats/StoreStatsScreen';
+import { LogBox } from 'react-native';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Ignore specific warning about text strings
+LogBox.ignoreLogs(['Warning: Text strings must be rendered within a <Text> component.']);
 
 // Thêm ChatStack vào các Stack Navigator
 const ChatStack = () => {
@@ -96,8 +100,8 @@ const StoreStack = () => {
         options={{ title: "Quản lý đơn hàng" }} 
       />
       <Stack.Screen 
-        name="RevenueStats" 
-        component={RevenueStats} 
+        name="StoreStatistics" 
+        component={StoreStatsScreen} 
         options={{ title: "Thống kê doanh thu" }} 
       />
       {user && (
@@ -114,7 +118,21 @@ const StoreStack = () => {
 const ProfileStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="ProfileMain" component={Profile} options={{ title: "Tài khoản" }} />
-    <Stack.Screen name="RevenueStats" component={RevenueStats} options={{ title: "Thống kê doanh thu" }} />
+  </Stack.Navigator>
+);
+
+// Stack Navigator riêng cho màn hình Thống kê
+const StatsStack = () => (
+  <Stack.Navigator>
+    <Stack.Screen 
+      name="StoreStatistics" // Tên màn hình thống kê
+      component={StoreStatsScreen}
+      options={{
+        title: "Thống kê doanh thu", // Tiêu đề cho màn hình thống kê
+        // Add any other header options here if needed
+      }}
+    />
+    {/* Add any other screens you might want accessible *within* the Stats tab's stack here */}
   </Stack.Navigator>
 );
 
@@ -189,6 +207,18 @@ const TabNavigator = () => {
                 tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="message-text" />,
               }}
             />
+          )}
+          {/* Add Store Statistics Tab for Store Owners */}
+          {user?.role === 'Chủ cửa hàng' && user?.store && (
+              <Tab.Screen
+                name="Thống kê"
+                component={StatsStack} // Use the new StatsStack
+                options={{
+                  title: "Thống kê",
+                  tabBarIcon: ({ color, size }) => <Icon size={30} color={color} source="chart-bar" />,
+                  headerShown: false, // Hide header for the tab itself, StatsStack will handle headers
+                }}
+              />
           )}
         </>
       )}
