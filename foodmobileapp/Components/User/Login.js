@@ -26,6 +26,7 @@ const Login = () => {
     const [msg, setMsg] = useState();
     const nav = useNavigation();
     const dispatch = useContext(MyDispatchContext);
+    const [showPassword, setShowPassword] = useState(false);
 
     const setState = (value, field) => {
         setUser({...user, [field]: value})
@@ -105,11 +106,23 @@ const Login = () => {
                 {msg}
             </HelperText>
             
-            {info.map(i =>  <TextInput key={i.field} style={MyStyles.m}
+            {info.map(i =>  {
+                const isPasswordField = i.field === 'password';
+                const iconName = isPasswordField ? (showPassword ? 'eye-off' : 'eye') : i.icon;
+                const isSecure = isPasswordField ? !showPassword : i.secureTextEntry;
+
+                return (
+                    <TextInput key={i.field} style={MyStyles.m}
                                 label={i.label}
-                                secureTextEntry={i.secureTextEntry}
-                                right={<TextInput.Icon icon={i.icon} />}
-                                value={user[i.field]} onChangeText={t => setState(t, i.field)} />)}
+                                secureTextEntry={isSecure}
+                                right={isPasswordField ? (
+                                    <TextInput.Icon icon={iconName} onPress={() => setShowPassword(!showPassword)} />
+                                ) : (
+                                    <TextInput.Icon icon={iconName} />
+                                )}
+                                value={user[i.field]} onChangeText={t => setState(t, i.field)} />
+                );
+            })}
 
             <Button onPress={login} disabled={loading} loading={loading} style={MyStyles.m} mode="contained">Đăng nhập</Button>
         </ScrollView>

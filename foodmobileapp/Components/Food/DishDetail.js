@@ -262,10 +262,12 @@ const DishDetail = ({ route, navigation }) => {
 
         {/* Thông tin chính của món ăn */}
         <View style={styles.mainInfoContainer}>
-          <Text style={styles.foodName}>{food.name}</Text>
-          <Text style={styles.foodPrice}>
-            {parseFloat(food.price)?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
-          </Text>
+          <View style={styles.namePriceContainer}>
+            <Text style={styles.foodName}>{food.name}</Text>
+            <Text style={styles.foodPrice}>
+              {parseFloat(food.price)?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+            </Text>
+          </View>
           
           {food.average_rating && (
             <View style={styles.ratingContainer}>
@@ -275,17 +277,18 @@ const DishDetail = ({ route, navigation }) => {
             </View>
           )}
 
-          {/* Thêm trạng thái Còn hàng/Hết hàng */}
-          <Text style={[styles.statusText, { color: food.active ? 'green' : 'red' }]}>
-            Trạng thái: {food.active ? 'Còn hàng' : 'Hết hàng'}
-          </Text>
+          {/* Thêm trạng thái Còn hàng/Hết hàng và Buổi bán */}
+          <View style={styles.statusMealTimeContainer}>
+            <Text style={[styles.statusText, { color: food.active ? 'green' : 'red' }]}>
+              Trạng thái: {food.active ? 'Còn hàng' : 'Hết hàng'}
+            </Text>
 
-          {/* Thêm buổi bán */}
-          {food.meal_time !== undefined && (
-             <Text style={styles.mealTimeText}>
-               Buổi bán: {getMealTimeLabel(food.meal_time)}
-             </Text>
-          )}
+            {food.meal_time !== undefined && (
+               <Text style={styles.mealTimeText}>
+                 Buổi bán: {getMealTimeLabel(food.meal_time)}
+               </Text>
+            )}
+          </View>
 
           {/* Thêm thời gian bán cụ thể nếu có (Hiện tại API chưa trả về trường này) */}
           {/* <Text style={styles.sellingTimeText}>
@@ -433,6 +436,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  namePriceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   foodName: {
     fontSize: 22,
@@ -588,6 +597,19 @@ const styles = StyleSheet.create({
   mealTimeText: {
     fontSize: 14,
     color: '#777',
+  },
+  statusMealTimeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 5,
+    marginBottom: 8,
+  },
+  namePriceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
 });
 

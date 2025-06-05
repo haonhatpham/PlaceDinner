@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useContext } from "react";
-import { Text, View, ScrollView } from "react-native";
+import { Text, View, ScrollView, Image, StyleSheet } from "react-native";
 import { MyDispatchContext, MyUserContext } from "../../configs/Contexts";
 import MyStyles from "../../styles/MyStyles";
 import { Button, Card, Divider } from "react-native-paper";
@@ -64,6 +64,13 @@ const Profile = () => {
 
     return (
         <ScrollView style={MyStyles.container}>
+            <View style={styles.profileHeader}>
+                {user?.avatar && (
+                    <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                )}
+                <Text style={styles.username}>{user?.username}</Text>
+            </View>
+
             <View style={MyStyles.m}>
                 <Text style={MyStyles.title}>Thông tin tài khoản</Text>
                 {/* Thông tin cá nhân */}
@@ -143,5 +150,23 @@ const Profile = () => {
         </ScrollView>
     );
 }
+
+const styles = StyleSheet.create({
+    profileHeader: {
+        alignItems: 'center',
+        marginTop: 20,
+        marginBottom: 20,
+    },
+    avatar: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        marginBottom: 10,
+    },
+    username: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+});
 
 export default Profile;
