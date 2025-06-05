@@ -105,7 +105,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'hieu',
         'HOST': ''  # mặc định localhost
     }
 }
@@ -186,3 +186,4 @@ EMAIL_HOST_PASSWORD = 'awoq uxis jtdb dyca'
 DEFAULT_FROM_EMAIL = 'thongbaocuahang@gmail.com'
 
 MOMO_SECRET_KEY = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+USE_TZ = False

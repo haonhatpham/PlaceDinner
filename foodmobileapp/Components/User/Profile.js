@@ -92,17 +92,6 @@ const Profile = () => {
                             <Text style={MyStyles.text}>Tên cửa hàng: {user.store.name}</Text>
                             <Text style={MyStyles.text}>Địa chỉ: {user.store.address}</Text>
                             <Text style={MyStyles.text}>Giờ mở cửa: {user.store.opening_hours}</Text>
-                            <Divider style={{ marginVertical: 10 }} />
-                            <Button 
-                                mode="contained"
-                                icon="chart-bar"
-                                onPress={() => nav.navigate('RevenueStats', {
-                                    storeId: user.store.id
-                                })}
-                                style={{ marginTop: 10 }}
-                            >
-                                Xem thống kê doanh thu
-                            </Button>
                         </Card.Content>
                     </Card>
                 )}
