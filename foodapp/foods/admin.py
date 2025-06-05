@@ -1,5 +1,8 @@
 from django.contrib import admin
+from django.contrib import messages
 from .models import * # Import các model khác
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
 
 # Tạo AdminSite tùy chỉnh
 class FoodManageAppAdminSite(admin.AdminSite):
@@ -11,6 +14,8 @@ class FoodManageAppAdminSite(admin.AdminSite):
 class AccountInline(admin.StackedInline):  # Hoặc sử dụng TabularInline nếu muốn bảng gọn hơn
     model = Account
     extra = 1  # Đặt số lượng form mặc định cho inline (1 form trống)
+    can_delete = False
+    verbose_name_plural = 'account'
 
 # Đăng ký model User với các thông tin Account inline
 class CustomUserAdmin(admin.ModelAdmin):
@@ -29,12 +34,19 @@ class StoreAdmin(admin.ModelAdmin):
     list_display = ['name', 'get_account_username', 'address', 'is_approved', 'active']
     search_fields = ['name', 'account__user__username', 'address']  # Tìm kiếm theo username của owner (account liên kết với user)
     list_filter = ['is_approved', 'active']
+    actions = ['approve_selected_stores']
 
     # Phương thức này lấy thông tin user từ Account
     def get_account_username(self, obj):
         return obj.account.user.username  # Lấy username từ user liên kết với account
     get_account_username.short_description = 'Account Owner'  # Tên hiển thị cho cột này trong Admin
 
+    # Action tùy chỉnh để duyệt cửa hàng
+    def approve_selected_stores(self, request, queryset):
+        count = queryset.update(is_approved=True, active=True)
+        self.message_user(request, f"Đã duyệt thành công {count} cửa hàng.", messages.SUCCESS)
+
+    approve_selected_stores.short_description = "Duyệt các cửa hàng đã chọn"
 
 # Category Admin
 class CategoryAdmin(admin.ModelAdmin):

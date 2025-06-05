@@ -82,15 +82,20 @@ export const authApi = (token) => {
         }
     );
 
-    // Add response interceptor
+    // Add or modify response interceptor
     api.interceptors.response.use(
         (response) => response,
         (error) => {
+            // Check if the error is the specific 403 from current_user
+            if (error.response && error.response.status === 403 && error.config && error.config.url.endsWith(endpoints['current-user'])) {
+                // Mark this error as specifically handled
+                error._isSpecificError = true;
+            }
+            // If it's a 401, log it
             if (error.response?.status === 401) {
-                // Token expired or invalid
                 console.error('Authentication error:', error);
             }
-            return Promise.reject(error);
+            return Promise.reject(error); // Re-reject the error so it can be caught downstream
         }
     );
 

@@ -52,7 +52,7 @@ const ReviewSection = ({ foodId, onReviewAdded }) => {
             // Tạo dữ liệu đánh giá với store_id
             const reviewData = {
                 ...newReview,
-                store: foodData.store
+                store: foodData.store?.id
             };
             
             console.log('Dữ liệu đánh giá:', reviewData);
@@ -71,12 +71,21 @@ const ReviewSection = ({ foodId, onReviewAdded }) => {
                 data: error.response?.data,
                 message: error.message
             });
-            
-            if (error.response?.data?.error) {
-                Alert.alert('Lỗi', error.response.data.error);
-            } else {
-                Alert.alert('Lỗi', 'Không thể thêm đánh giá');
+
+            // Cải thiện xử lý lỗi để hiển thị thông báo thân thiện hơn
+            let errorMessage = 'Không thể thêm đánh giá';
+            if (error.response && error.response.data) {
+                if (error.response.data.comment && error.response.data.comment.includes('This field may not be blank.')) {
+                    errorMessage = 'Vui lòng nhập bình luận cho đánh giá.';
+                } else if (error.response.data.error) {
+                    errorMessage = error.response.data.error;
+                } else if (error.message) {
+                    errorMessage = `Lỗi: ${error.message}`;
+                }
             }
+
+            Alert.alert('Lỗi', errorMessage);
+
         } finally {
             setLoading(false);
         }

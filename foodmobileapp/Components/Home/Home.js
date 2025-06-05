@@ -36,11 +36,10 @@ const Home = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       console.log('Home screen focused, refreshing data...');
-      // Reset page và dishes để load lại từ đầu khi màn hình được focus
+      // Khi màn hình được focus, reset page về 1 và tải lại món ăn
       setPage(1);
-      setDishes([]);
-      setHasMore(true); // Reset hasMore
-      // loadDishes sẽ được gọi bởi useEffect theo dõi page
+      // Không cần reset dishes ở đây, loadDishes sẽ xử lý
+      // loadDishes() // loadDishes sẽ được gọi bởi useEffect theo dõi page
     }, [])
   );
 
@@ -484,7 +483,7 @@ const Home = ({ navigation }) => {
         }
         data={dishes}
         renderItem={({ item }) => <DishItem item={item} />}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) => item.id ? item.id.toString() : `temp-${index}`}
         onEndReached={loadMore}
         onEndReachedThreshold={0.1}
         ListFooterComponent={

@@ -54,17 +54,54 @@ const OrderScreen = ({ route, navigation }) => {
   }, [user]);
 
   useEffect(() => {
-    const handleDeepLink = (event) => {
-      // Xử lý event.url ở đây
+    const handleDeepLink = async (event) => {
+      console.log('App received deep link URL:', event.url);
+      // Ở đây, chúng ta cần xử lý URL từ MoMo để kiểm tra trạng thái thanh toán
+      const url = new URL(event.url);
+      const params = url.searchParams;
+      const momoResultCode = params.get('resultCode');
+
+      // Tạm thời ẩn loading ngay khi nhận deep link (sẽ bật lại nếu cần fetch)
+      setLoading(false);
+      setCreatingOrder(false);
+
+      let alertMessage = 'Đã quay lại ứng dụng từ MoMo.';
+
+      if (momoResultCode === '0') {
+        alertMessage = 'Thanh toán MoMo thành công! Hệ thống đang cập nhật trạng thái đơn hàng.';
+         // TODO: Logic lý tưởng là fetch chi tiết đơn hàng từ backend để cập nhật UI
+         // Điều này yêu cầu backend IPN handler hoạt động đúng
+         // và có cách để lấy orderId từ deep link nếu cần thiết
+         // Ví dụ: await fetchOrderStatus(orderId);
+      } else if (momoResultCode) {
+         alertMessage = `Thanh toán MoMo thất bại hoặc bị hủy (Mã: ${momoResultCode}). Vui lòng thử lại.`;
+      }
+
+      // Hiển thị thông báo kết quả tạm thời
+      Alert.alert('Thông báo', alertMessage, [
+          { text: 'OK', onPress: () => {
+              console.log("Navigating to Đơn hàng screen after MoMo return.");
+              // Điều hướng đến màn hình đơn hàng sau khi người dùng nhấn OK
+              navigation.navigate('Main', { screen: 'Đơn hàng' });
+          }}
+      ]);
+
+      // Quan trọng: Dù có lỗi hay không, đảm bảo điều hướng sau một khoảng trễ ngắn
+      // Nếu Alert không được hiển thị vì lý do nào đó, hoặc người dùng không nhấn OK ngay
+      // setTimeout(() => {
+      //    console.log("Fallback navigating to Đơn hàng screen after MoMo return.");
+      //    navigation.navigate('Main', { screen: 'Đơn hàng' });
+      // }, 3000); // Điều hướng sau 3 giây nếu không có tương tác alert
     };
-    
+
+    // Lắng nghe sự kiện deep link
     const subscription = Linking.addEventListener('url', handleDeepLink);
-    
-    // Return cleanup function
+
+    // Cleanup listener khi component unmount
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, []); // Dependency array rỗng để chỉ chạy 1 lần khi mount
 
   // Tính tổng tiền đơn hàng
   const calculateTotal = () => {
@@ -75,101 +112,7 @@ const OrderScreen = ({ route, navigation }) => {
     return orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
 
-  // Hàm xử lý thanh toán MoMo
-  const handleMoMoPayment = async () => {
-    try {
-      setLoading(true);
-      
-      // Tạo đơn hàng trước
-      const orderResponse = await handleCreateOrder();
-      if (!orderResponse) return;
-
-      // Gọi API tạo payment MoMo
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        Alert.alert('Lỗi', 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!');
-        return;
-      }
-
-      const redirectUrl = "placedinner://payment";
-      // Tạo orderId duy nhất bằng cách thêm timestamp
-      const timestamp = new Date().getTime();
-      const orderId = `${orderResponse.data.id}_${timestamp}`;
-      // Đảm bảo amount là số nguyên và tối thiểu là 10000
-      const amount = Math.max(10000, Math.round(parseFloat(orderResponse.data.total_amount))).toString();
-      
-      console.log("Creating MoMo payment for order:", orderId);
-      console.log("Order amount:", amount);
-      
-      const paymentData = {
-        amount: amount,
-        order_info: `Thanh toan don hang ${orderResponse.data.id}`,
-        redirect_url: redirectUrl,
-        ipn_url: `${BASE_URL}/momo/webhook/`,
-        orderId: orderId
-      };
-
-      console.log("Payment data:", JSON.stringify(paymentData, null, 2));
-
-      const paymentResponse = await authApi(token).post(
-        endpoints['create-payment'],
-        paymentData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      console.log("MoMo payment response:", JSON.stringify(paymentResponse.data, null, 2));
-
-      if (paymentResponse.data && (paymentResponse.data.payUrl || paymentResponse.data.qrCodeUrl)) {
-        setPaymentId(paymentResponse.data.payment_id);
-        
-        // Ưu tiên mở payUrl nếu có
-        if (paymentResponse.data.payUrl) {
-          console.log("Received Pay URL:", paymentResponse.data.payUrl);
-          const supported = await Linking.canOpenURL(paymentResponse.data.payUrl);
-          if (supported) {
-            await Linking.openURL(paymentResponse.data.payUrl);
-            Alert.alert(
-              'Thông báo',
-              'Vui lòng hoàn tất thanh toán trên trang MoMo và quay lại ứng dụng\n\nThông tin test:\nSố điện thoại: 0123456789\nMật khẩu: 000000',
-              [{ text: 'OK' }]
-            );
-             // Đóng modal QR nếu nó đang mở (trong trường hợp trước đó đã mở bằng qrCodeUrl)
-            setShowQRModal(false);
-          } else {
-            Alert.alert('Lỗi', 'Không thể mở trang thanh toán MoMo từ Pay URL');
-          }
-        } else if (paymentResponse.data.qrCodeUrl) {
-          // Nếu chỉ có qrCodeUrl (deep link), có thể hiển thị nó thành text hoặc xử lý khác
-          // Hiện tại chúng ta không tạo QR ảnh từ deep link nữa
-          console.log("Received QR Code Deep Link (not for QR image):", paymentResponse.data.qrCodeUrl);
-           Alert.alert(
-            'Thông báo',
-            'MoMo trả về deep link QR. Vui lòng mở ứng dụng MoMo để hoàn tất thanh toán.\n\nThông tin test:\nSố điện thoại: 0123456789\nMật khẩu: 000000',
-             [{ text: 'OK' }]
-           );
-          // Tùy chọn: Bạn có thể thử Linking.openURL(paymentResponse.data.qrCodeUrl); 
-          // để xem nó có mở ứng dụng MoMo trực tiếp không.
-          // await Linking.openURL(paymentResponse.data.qrCodeUrl);
-        }
-      } else {
-        console.error("Invalid MoMo response:", paymentResponse.data);
-        Alert.alert('Lỗi', 'Không thể tạo yêu cầu thanh toán MoMo');
-      }
-    } catch (error) {
-      console.error('MoMo Payment Error:', error.response?.data || error);
-      const errorMessage = error.response?.data?.error || 'Không thể xử lý thanh toán MoMo';
-      const errorDetails = error.response?.data?.details || '';
-      Alert.alert('Lỗi', `${errorMessage}${errorDetails ? `\n\nChi tiết: ${errorDetails}` : ''}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Sửa lại hàm handleCreateOrder để trả về response
+  // Sửa lại hàm handleCreateOrder để trả về response và không tự xử lý thông báo/điều hướng
   const handleCreateOrder = async () => {
     if (!user) {
       Alert.alert('Thông báo', 'Bạn cần đăng nhập để đặt hàng!');
@@ -179,7 +122,7 @@ const OrderScreen = ({ route, navigation }) => {
     try {
       // Lấy token từ AsyncStorage
       const token = await AsyncStorage.getItem('token');
-      
+
       if (!token) {
         Alert.alert('Thông báo', 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!');
         return null;
@@ -201,12 +144,12 @@ const OrderScreen = ({ route, navigation }) => {
       }
 
       // Kiểm tra xem tất cả các món có thuộc cùng một cửa hàng không
-      const storeIds = new Set(orderItems.map(item => item.store_id).filter(id => id));
+      const storeIds = new Set(orderItems.map(item => item.store?.id).filter(id => id));
       if (storeIds.size > 1) {
         Alert.alert('Thông báo', 'Hiện tại chỉ có thể đặt món từ một cửa hàng trong một lần đặt hàng');
         return null;
       }
-      
+
       console.info(orderItems[0]?.store_id );
       // Lấy store_id từ món đầu tiên, hoặc dùng ID mặc định nếu không có
       // Đảm bảo storeId là số nguyên
@@ -242,13 +185,157 @@ const OrderScreen = ({ route, navigation }) => {
       if (isFromCart) {
         await AsyncStorage.removeItem('cart');
       }
+
+      // Reset form state after successful order (cho cả 2 trường hợp)
+      setOrderItems([]); // Clear selected food items
+      setAddress(''); // Clear address
+      setPhoneNumber(''); // Clear phone number
+      setOrderNote(''); // Clear note
+      setPaymentMethod('cash'); // Reset payment method to default
+      setDeliveryMethod('delivery'); // Reset delivery method to default
+
+
+      // *** QUAN TRỌNG: handleCreateOrder CHỈ TRẢ VỀ RESPONSE KHI THÀNH CÔNG ***
+      // Logic thông báo và điều hướng sẽ nằm ở hàm gọi
       return response;
+
     } catch (error) {
       console.error('Create Order Error:', error);
       Alert.alert('Lỗi', 'Không thể tạo đơn hàng');
+      // Trả về null khi có lỗi để hàm gọi xử lý
       return null;
     } finally {
-      setCreatingOrder(false);
+      // setCreatingOrder(false); // Loading sẽ được handle ở hàm gọi (handleMoMoPayment hoặc nút bấm)
+    }
+  };
+
+  // Hàm xử lý thanh toán MoMo
+  const handleMoMoPayment = async () => {
+    try {
+      setLoading(true);
+
+      const orderResponse = await handleCreateOrder();
+      if (!orderResponse || !orderResponse.data) {
+        // Lỗi đã được xử lý trong handleCreateOrder
+        return;
+      }
+
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Lỗi', 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!');
+        return;
+      }
+
+      // Redirect URL cần được MoMo gọi lại với kết quả
+      const redirectUrl = "placedinner://payment";
+      const timestamp = new Date().getTime();
+      const orderId = `${orderResponse.data.id}_${timestamp}`;
+      const amount = Math.max(10000, Math.round(parseFloat(orderResponse.data.total_amount))).toString();
+
+      console.log("Creating MoMo payment for order:", orderId);
+      console.log("Order amount:", amount);
+
+      const paymentData = {
+        amount: amount,
+        order_info: `Thanh toan don hang ${orderResponse.data.id}`,
+        redirect_url: redirectUrl, // <--- MoMo sẽ gọi lại URL này
+        ipn_url: `${BASE_URL}/momo/webhook/`, // <--- MoMo gửi IPN đến URL này ở backend
+        orderId: orderId
+      };
+
+      console.log("Payment data:", JSON.stringify(paymentData, null, 2));
+
+      const paymentResponse = await authApi(token).post(
+        endpoints['create-payment'],
+        paymentData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log("MoMo payment response data:", JSON.stringify(paymentResponse.data, null, 2));
+      console.log("MoMo payment response status:", paymentResponse.status);
+      console.log("MoMo payment response headers:", paymentResponse.headers);
+
+      if (paymentResponse.data && paymentResponse.data.payUrl) { // Ưu tiên Pay URL
+        console.log("Received Pay URL:", paymentResponse.data.payUrl);
+        const supported = await Linking.canOpenURL(paymentResponse.data.payUrl);
+        if (supported) {
+          await Linking.openURL(paymentResponse.data.payUrl);
+          // KHÔNG điều hướng hoặc ẩn loading ở đây.
+          // Việc này sẽ được handleDeepLink xử lý khi app quay lại.
+          // Hiển thị alert hướng dẫn người dùng hoàn tất thanh toán
+          Alert.alert(
+            'Thông báo',
+            'Đang chuyển hướng đến cổng thanh toán MoMo. Vui lòng hoàn tất thanh toán và quay lại ứng dụng.\n\nThông tin test:\nSố điện thoại: 0123456789\nMật khẩu: 000000',
+            [{ text: 'OK' }]
+          );
+
+        } else {
+          Alert.alert('Lỗi', 'Không thể mở trang thanh toán MoMo từ Pay URL');
+           // Ẩn loading và điều hướng nếu không mở được URL
+          setLoading(false);
+          navigation.navigate('Main', { screen: 'Đơn hàng' });
+        }
+      } else if (paymentResponse.data && paymentResponse.data.qrCodeUrl) { // Xử lý deep link QR nếu có
+         console.log("Received QR Code Deep Link (not for QR image):", paymentResponse.data.qrCodeUrl);
+         // Cố gắng mở deep link trực tiếp
+         const supported = await Linking.canOpenURL(paymentResponse.data.qrCodeUrl);
+         if (supported) {
+            await Linking.openURL(paymentResponse.data.qrCodeUrl);
+             Alert.alert(
+               'Thông báo',
+               'Đang mở ứng dụng MoMo để thanh toán. Vui lòng hoàn tất thanh toán và quay lại ứng dụng.\n\nThông tin test:\nSố điện thoại: 0123456789\nMật khẩu: 000000',
+              [{ text: 'OK' }]
+            );
+         } else {
+            Alert.alert('Lỗi', 'Không thể mở ứng dụng MoMo từ Deep Link QR.');
+         }
+         // Ẩn loading và điều hướng nếu không mở được deep link
+         setLoading(false);
+         navigation.navigate('Main', { screen: 'Đơn hàng' });
+
+      }
+      else {
+        console.error("Invalid MoMo response:", paymentResponse.data);
+        Alert.alert('Lỗi', 'Không thể tạo yêu cầu thanh toán MoMo');
+        // Ẩn loading và điều hướng nếu phản hồi MoMo không hợp lệ
+        setLoading(false);
+        navigation.navigate('Main', { screen: 'Đơn hàng' });
+      }
+      // Không có finally block ở đây để setLoading(false), vì loading sẽ được handleDeepLink hoặc các error case ở trên xử lý
+
+    } catch (error) {
+      console.error('MoMo Payment Error:', error.response?.data || error);
+      const errorMessage = error.response?.data?.error || 'Không thể xử lý thanh toán MoMo';
+      const errorDetails = error.response?.data?.details || '';
+      Alert.alert('Lỗi', `${errorMessage}${errorDetails ? `\n\nChi tiết: ${errorDetails}` : ''}`);
+      // Ẩn loading và điều hướng sau khi hiển thị lỗi
+      setLoading(false);
+      navigation.navigate('Main', { screen: 'Đơn hàng' });
+    }
+  };
+
+  // Hàm xử lý khi nút Đặt hàng được bấm (phương thức tiền mặt)
+  const handleCashOrder = async () => {
+    try {
+       setCreatingOrder(true);
+       const orderResponse = await handleCreateOrder(); // Tạo đơn hàng tiền mặt
+
+       if (orderResponse && orderResponse.data) {
+           // Nếu tạo đơn hàng thành công (tiền mặt), hiển thị thông báo và điều hướng
+           Alert.alert('Thành công', 'Đơn hàng của bạn đã được tạo thành công!', [
+               { text: 'OK', onPress: () => {
+                 console.log("Navigating to Đơn hàng screen...");
+                 navigation.navigate('Main', { screen: 'Đơn hàng' });
+               } }
+           ]);
+       }
+        // else: handleCreateOrder đã xử lý lỗi và hiển thị alert
+    } finally {
+        setCreatingOrder(false);
     }
   };
 
@@ -407,7 +494,7 @@ const OrderScreen = ({ route, navigation }) => {
     return (
       <View>
         {items.map((item, index) => (
-          <View key={index} style={styles.orderItem}>
+          <View key={item.id ? item.id.toString() : index} style={styles.orderItem}>
             {!isExistingOrder && (
               <Image
                 source={{ uri: item.image || 'https://via.placeholder.com/60' }}
@@ -481,6 +568,7 @@ const OrderScreen = ({ route, navigation }) => {
                 onPress={handleConfirmOrder}
                 loading={loading}
                 style={styles.actionButton}
+                disabled={loading || currentOrder.status !== 'PENDING'}
               >
                 Xác nhận đơn hàng
               </Button>
@@ -492,6 +580,7 @@ const OrderScreen = ({ route, navigation }) => {
                 onPress={handleDeliverOrder}
                 loading={loading}
                 style={styles.actionButton}
+                disabled={loading || currentOrder.status !== 'CONFIRMED'}
               >
                 Ghi nhận giao hàng
               </Button>
@@ -589,12 +678,12 @@ const OrderScreen = ({ route, navigation }) => {
 
         <Button
           mode="contained"
-          onPress={paymentMethod === 'momo' ? handleMoMoPayment : handleCreateOrder}
+          onPress={paymentMethod === 'momo' ? handleMoMoPayment : handleCashOrder}
           style={styles.orderButton}
-          loading={creatingOrder}
-          disabled={creatingOrder}
+          loading={creatingOrder || loading}
+          disabled={creatingOrder || loading}
         >
-          {creatingOrder ? 'Đang xử lý...' : 'Đặt hàng'}
+          {creatingOrder || loading ? 'Đang xử lý...' : 'Đặt hàng'}
         </Button>
       </ScrollView>
     );

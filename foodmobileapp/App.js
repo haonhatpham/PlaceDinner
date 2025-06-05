@@ -2,7 +2,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Icon, Provider as PaperProvider, IconButton } from "react-native-paper";
-import { useContext, useReducer } from "react";
+import { useContext, useReducer, useRef, useEffect } from "react";
 import Home from "./Components/Home/Home";
 import OrderListScreen from "./Components/Order/OrderListScreen";
 import OrderScreen from "./Components/Order/OrderScreen";
@@ -22,6 +22,9 @@ import ChatScreen from './Components/Chat/ChatScreen';
 import ChatListScreen from './Components/Chat/ChatListScreen';
 import MenuDetail from './Components/Home/MenuDetail';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authApi, endpoints } from './configs/Apis';
+import { AppState } from 'react-native';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -211,6 +214,46 @@ const RootNavigator = () => (
 
 const App = () => {
   const [user, dispatch] = useReducer(MyUserReducer, null);
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        try {
+          console.log("Attempting to load user from AsyncStorage and validate token...");
+          const userRes = await authApi(token).get(endpoints['current-user']);
+          console.log("User loaded successfully.");
+          dispatch({ type: 'login', payload: userRes.data });
+        } catch (error) {
+          console.error("Failed to load user from AsyncStorage or validate token:", error);
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('refresh_token');
+          dispatch({ type: 'logout' });
+        }
+      } else {
+         console.log("No token found in AsyncStorage.");
+         dispatch({ type: 'logout' });
+      }
+    };
+
+    const handleAppStateChange = (nextAppState) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('App has come to the foreground!');
+        loadUser();
+      }
+      appState.current = nextAppState;
+      console.log('AppState', appState.current);
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    loadUser();
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
     <PaperProvider>

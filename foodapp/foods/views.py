@@ -49,6 +49,17 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='current_user')
     def current_user(self, request):
         account = request.user.account
+
+        # Thêm kiểm tra cho tài khoản cửa hàng chưa duyệt
+        if account.role == account.Role.STORE:
+            if not hasattr(account, 'store') or not account.store.is_approved or not account.store.active:
+                # Trả về lỗi nếu tài khoản là cửa hàng nhưng chưa được duyệt hoặc không active
+                return Response(
+                    {'detail': 'Tài khoản cửa hàng của bạn đang chờ quản trị viên xác nhận hoặc chưa được kích hoạt.'},
+                    status=status.HTTP_403_FORBIDDEN # Sử dụng status 403 Forbidden
+                )
+
+        # Nếu không phải cửa hàng hoặc đã được duyệt, tiếp tục trả về thông tin user
         serializer = AccountRegisterSerializer(account)
         return Response(serializer.data)
 

@@ -70,9 +70,14 @@ class AccountRegisterSerializer(serializers.ModelSerializer):
         # Tạo Account
         account = Account.objects.create(user=user, **validated_data)
 
-        # Nếu role là STORE, tạo Store
+        # Nếu role là STORE, tạo Store với active=False
         if account.role == Account.Role.STORE:
-            Store.objects.create(account=account, name=f"Cửa hàng {user.username}", **store_data)
+            Store.objects.create(
+                account=account, 
+                name=f"Cửa hàng {user.username}", 
+                active=False,  # Set active=False khi tạo mới
+                **store_data
+            )
 
         return account
 

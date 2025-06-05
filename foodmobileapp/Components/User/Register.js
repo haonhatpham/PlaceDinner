@@ -1,4 +1,4 @@
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native"
+import { Image, ScrollView, Text, TouchableOpacity, View, Alert } from "react-native"
 import MyStyles from "../../styles/MyStyles"
 import { Button, HelperText, TextInput, SegmentedButtons } from "react-native-paper";
 import * as ImagePicker from 'expo-image-picker';
@@ -118,39 +118,53 @@ const Register = () => {
         }
     };
 
+    // Hàm hiển thị thông báo
+    const showAlert = (title, message, onPress = null) => {
+        Alert.alert(
+            title,
+            message,
+            [
+                {
+                    text: "OK",
+                    onPress: onPress
+                }
+            ]
+        );
+    }
+
     // Hàm validate form
     const validate = () => {
         // Avatar bắt buộc cho tài khoản cửa hàng
         if (userType === 'STORE' && !avatar) {
-            setMsg("Vui lòng chọn ảnh đại diện cho cửa hàng!");
+            showAlert("Lỗi", "Vui lòng chọn ảnh đại diện cho cửa hàng!");
             return false;
         }
 
         // Kiểm tra các trường thông tin cơ bản bắt buộc
         for (let field of basicInfo) {
             if (field.required && !user[field.field]) {
-                setMsg(`Vui lòng nhập ${field.label}!`);
+                showAlert("Lỗi", `Vui lòng nhập ${field.label}!`);
                 return false;
             }
         }
 
         // Kiểm tra mật khẩu khớp
         if (user.password !== user.confirm_password) {
-            setMsg("Mật khẩu xác nhận không khớp!");
+            showAlert("Lỗi", "Mật khẩu xác nhận không khớp!");
             return false;
         }
 
         // Kiểm tra email hợp lệ
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(user.email)) {
-            setMsg("Email không hợp lệ!");
+            showAlert("Lỗi", "Email không hợp lệ!");
             return false;
         }
 
         // Kiểm tra số điện thoại hợp lệ
         const phoneRegex = /^[0-9]{10}$/;
         if (!phoneRegex.test(user.phone_number)) {
-            setMsg("Số điện thoại không hợp lệ (phải có 10 chữ số)!");
+            showAlert("Lỗi", "Số điện thoại không hợp lệ (phải có 10 chữ số)!");
             return false;
         }
 
@@ -158,13 +172,12 @@ const Register = () => {
         if (userType === 'STORE') {
             for (let field of storeInfo) {
                 if (field.required && !user[field.field]) {
-                    setMsg(`Vui lòng nhập ${field.label}!`);
+                    showAlert("Lỗi", `Vui lòng nhập ${field.label}!`);
                     return false;
                 }
             }
         }
       
-        setMsg('');
         return true;
     }
 
@@ -220,8 +233,11 @@ const Register = () => {
                 });
                 
                 if (userType === 'STORE') {
-                    setMsg("Đăng ký thành công! Vui lòng chờ admin xác nhận tài khoản.");
-                    setTimeout(() => nav.navigate('Đăng nhập'), 2000);
+                    showAlert(
+                        "Thành công", 
+                        "Đăng ký thành công! Vui lòng chờ admin xác nhận tài khoản.",
+                        () => nav.navigate('Đăng nhập')
+                    );
                 } else {
                     dispatch({
                         "type": "login",
@@ -235,9 +251,9 @@ const Register = () => {
                     for (let key in error.response.data) {
                         errorMsg += `${key}: ${error.response.data[key].join(', ')}\n`;
                     }
-                    setMsg(errorMsg);
+                    showAlert("Lỗi", errorMsg);
                 } else {
-                    setMsg("Đăng ký thất bại! Vui lòng thử lại sau.");
+                    showAlert("Lỗi", "Đăng ký thất bại! Vui lòng thử lại sau.");
                 }
                 console.error('Lỗi đăng ký:', error);
             } finally {
@@ -367,13 +383,6 @@ const Register = () => {
                     Đã có tài khoản? Đăng nhập ngay
                 </Text>
             </TouchableOpacity>
-            {/* Hiển thị thông báo lỗi/thành công */}
-            {msg && (
-                <HelperText type="error" visible={true} style={MyStyles.m}>
-                    {msg}
-                </HelperText>
-            )}
-          
         </ScrollView>
     );
 }

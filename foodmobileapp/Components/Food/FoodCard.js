@@ -12,7 +12,29 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 20);
 
+// Hàm helper để định dạng giá tiền sang VND
+const formatPriceVND = (price) => {
+    // Đảm bảo giá trị là số và là số hợp lệ
+    const priceNumber = parseFloat(price);
+    if (isNaN(priceNumber)) {
+        return 'N/A'; // Hoặc một chuỗi báo lỗi khác
+    }
+
+    // Định dạng số với dấu chấm phân cách hàng nghìn
+    // Sử dụng toFixed(0) để loại bỏ phần thập phân nếu luôn là .00
+    const formattedPrice = priceNumber.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+    return `${formattedPrice}₫`;
+};
+
 const FoodCard = ({ food, onPress }) => {
+
+    // Thêm log để kiểm tra kiểu dữ liệu và giá trị của food.price
+    console.log('FoodCard - Price Data:', { type: typeof food.price, value: food.price });
+
+    // Sử dụng hàm định dạng tùy chỉnh
+    const displayPrice = formatPriceVND(food.price);
+
     return (
         <TouchableOpacity style={styles.container} onPress={onPress}>
             <Image
@@ -25,7 +47,8 @@ const FoodCard = ({ food, onPress }) => {
                     {food.name}
                 </Text>
                 <Text style={styles.price}>
-                    {food.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                    {/* Sử dụng giá trị đã được định dạng bởi hàm helper */}
+                    {displayPrice}
                 </Text>
                 <View style={styles.storeContainer}>
                     <Ionicons name="restaurant-outline" size={14} color="#666" />

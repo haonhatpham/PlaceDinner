@@ -130,7 +130,7 @@ const OrderListScreen = ({ navigation }) => {
     }
 
     // Kiểm tra xem giỏ hàng có món từ nhiều cửa hàng khác nhau không
-    const storeIds = new Set(cartItems.map(item => item.store_id).filter(id => id));
+    const storeIds = new Set(cartItems.map(item => item.store?.id).filter(id => id));
     if (storeIds.size > 1) {
       Alert.alert(
         'Thông báo',
