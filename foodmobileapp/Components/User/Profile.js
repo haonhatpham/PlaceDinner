@@ -48,6 +48,10 @@ const Profile = () => {
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('refresh_token');
             
+            // === THÊM: Xóa thông tin người dùng khỏi AsyncStorage ===
+            await AsyncStorage.removeItem('user');
+            // =====================================================
+
             // Dispatch action logout
             dispatch({
                 "type": "logout"

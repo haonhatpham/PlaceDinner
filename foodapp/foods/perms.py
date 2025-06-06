@@ -27,7 +27,6 @@ class IsAdmin(permissions.BasePermission):
 
 
 class IsCustomer(permissions.BasePermission):
-
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.account.role == request.user.account.Role.CUSTOMER
 
@@ -46,3 +45,6 @@ class IsStoreOwnerOrAdmin(permissions.BasePermission):
                 return obj.store.account == request.user.account
 
         return False
+class IsCommentOwner(permissions.IsAuthenticated):
+    def has_object_permission(self, request, view, comment):
+        return super().has_permission(request, view) and request.user == comment.user

@@ -2,14 +2,13 @@ import uuid
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, generics, permissions, status, parsers
 from rest_framework.decorators import action, api_view
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.db import transaction
 from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import *
-from .permissions import *
+from .perms import *
 from django.core.mail import send_mail
 from rest_framework.generics import get_object_or_404, RetrieveAPIView, UpdateAPIView
 from django.views.generic import View
@@ -99,12 +98,12 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 
     def get_permissions(self):
         if self.action in ['create']:
-            return [permissions.IsAuthenticated(), IsStoreOwnerOrAdmin()]
+            return [IsStoreOwner()]
         return [permissions.AllowAny()]
 
     # Cho review(comment + rating)
     @action(detail=True, methods=['get', 'post'], url_path='reviews',
-            permission_classes=[permissions.IsAuthenticatedOrReadOnly])
+            permission_classes=[IsCustomer])
     def reviews(self, request, pk=None):
         food = get_object_or_404(Food, pk=pk)
 
@@ -120,7 +119,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
 
-    @action(detail=False, methods=['GET', 'POST'], url_path='my-store', permission_classes=[permissions.AllowAny])
+    @action(detail=False, methods=['GET', 'POST'], url_path='my-store', permission_classes=[IsStoreOwner])
     def get_my_store_foods(self, request):
         if request.method == 'GET':
             foods = Food.objects.filter(store=request.user.account.store)
@@ -154,7 +153,7 @@ class FoodViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['patch'], permission_classes=[IsStoreOwner])
     def update_availability(self, request, pk=None):
         food = get_object_or_404(Food, pk=pk)
 
@@ -180,7 +179,7 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
     serializer_class = StoreSerializer
     permission_classes = [permissions.AllowAny]
 
-    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['patch'], permission_classes=[IsStoreOwner])
     def update_opening_hours(self, request, pk=None):
         store = get_object_or_404(Store, pk=pk)
         new_hours = request.data.get('opening_hours')
@@ -192,29 +191,8 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
             "opening_hours": store.opening_hours
         })
 
-    @action(detail=True, methods=['patch'])
-    def approve_store(self, request, pk=None):
-        try:
-            store = Store.objects.get(pk=pk)
-            store.active = True
-            store.is_approved = True
-            store.save()
-            return Response({'message': f'Cửa hàng "{store.name}" đã được duyệt thành công!'})
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=False, methods=['get'], url_path='pending')
-    def pending(self, request, pk=None):
-        # Danh sách cửa hàng chưa duyệt (admin)
-        try:
-            stores = Store.objects.filter(is_approved=False)
-            serializer = StoreSerializer(stores, many=True)
-            return Response(serializer.data)
-        except Store.DoesNotExist:
-            return Response({'error': 'Không tìm thấy cửa hàng'}, status=status.HTTP_404_NOT_FOUND)
-
     # Cho follower
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[IsCustomer])
     def follow(self, request, pk=None):
         store = get_object_or_404(Store, pk=pk)
         customer = request.user.account
@@ -243,7 +221,7 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
             "followers_count": store.followers.count()
         })
 
-    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=False, methods=['get'], permission_classes=[IsCustomer])
     def following(self, request):
         """Lấy danh sách cửa hàng đang theo dõi"""
         customer = request.user.account
@@ -254,7 +232,7 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
         serializer = self.get_serializer(stores, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['get'], permission_classes=[IsStoreOwner])
     def check_following(self, request, pk=None):
         """Kiểm tra xem người dùng có đang theo dõi cửa hàng không"""
         store = get_object_or_404(Store, pk=pk)
@@ -280,17 +258,17 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
         if request.method == 'GET':
             reviews = store.reviews.filter(food__isnull=True)
             serializer = ReviewSerializer(reviews, many=True)
-            return Response(serializer.data)
+            return Response(serializer.data,status=status.HTTP_200_OK)
 
         elif request.method == 'POST':
             serializer = ReviewSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(customer=request.user.account, store=store)
-                return Response(serializer.data, status=201)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=400)
 
 
-    @action(detail=False, methods=['get'], url_path='my-store', permission_classes=[permissions.IsAuthenticated])
+    @action(detail=False, methods=['get'], url_path='my-store', permission_classes=[IsStoreOwner])
     def my_store(self, request):
         # GET /stores/my-store/ → Lấy thông tin cửa hàng của user(là chủ cửa hàng)
         store = request.user.store
@@ -310,26 +288,6 @@ class ReviewDetailView(viewsets.ViewSet, generics.UpdateAPIView, generics.Destro
         return review
 
 
-# class NotificationViewSet(viewsets.ViewSet, generics.ListAPIView):
-#     serializer_class = NotificationSerializer
-#     permission_classes = [permissions.IsAuthenticated]
-
-#     def get_queryset(self):
-#         return Notification.objects.filter(account=self.request.user.account).order_by('-created_date')
-
-#     @action(detail=True, methods=['post'])
-#     def mark_as_read(self, request, pk=None):
-#         notification = get_object_or_404(Notification, pk=pk)
-#         notification.is_read = True
-#         notification.save()
-#         return Response({'status': 'Đã đánh dấu là đã đọc'})
-
-#     @action(detail=False, methods=['post'])
-#     def mark_all_as_read(self, request):
-#         Notification.objects.filter(account=request.user.account, is_read=False).update(is_read=True)
-#         return Response({'status': 'Đã đánh dấu tất cả là đã đọc'})
-
-
 class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -343,7 +301,7 @@ class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView):
         # Customer chỉ xem đơn của chính họ
         return Order.objects.filter(customer=user)
 
-    @action(detail=False, methods=['get'], url_path='my-orders')
+    @action(detail=False, methods=['get'], url_path='my-orders',permission_classes=[permissions.IsAuthenticated])
     def my_orders(self, request):
         orders = Order.objects.filter(customer=request.user.account)
         return Response(self.get_serializer(orders, many=True).data)
@@ -584,7 +542,7 @@ class MenuViewSet(viewsets.GenericViewSet,generics.ListAPIView):
     serializer_class = MenuSerializer
     permission_classes = [permissions.AllowAny]
 
-    @action(detail=False, methods=['GET', 'POST'], url_path='my-store',permission_classes=[AllowAny])
+    @action(detail=False, methods=['GET', 'POST'], url_path='my-store',permission_classes=[IsStoreOwner])
     def get_my_store_menus(self, request):
         if request.method == 'GET':
             menus = Menu.objects.filter(store=request.user.account.store)
@@ -601,7 +559,7 @@ class MenuViewSet(viewsets.GenericViewSet,generics.ListAPIView):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['GET'], url_path='detail', permission_classes=[AllowAny])
+    @action(detail=True, methods=['GET'], url_path='detail', permission_classes=[IsStoreOwner])
     def retrieve_my_store_menu(self, request, pk=None):
         try:
             menu = Menu.objects.get(id=pk)

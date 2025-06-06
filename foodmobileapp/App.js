@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -15,7 +16,6 @@ import ManageFoods from "./Components/Store/ManageFoods";
 import ManageMenus from "./Components/Store/ManageMenus";
 import StoreOrders from "./Components/Store/StoreOrders";
 import StoreDetail from "./Components/Store/StoreDetail";
-import RevenueStats from "./Components/Statistics/RevenueStats";
 import { MyDispatchContext, MyUserContext } from "./configs/Contexts";
 import MyUserReducer from "./reducers/MyUserReducer";
 import ChatScreen from './Components/Chat/ChatScreen';

@@ -105,7 +105,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'fooddb',
         'USER': 'root',
-        'PASSWORD': 'hieu',
+        'PASSWORD': '1234',
         'HOST': ''  # mặc định localhost
     }
 }
