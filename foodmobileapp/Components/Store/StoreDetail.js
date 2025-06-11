@@ -7,7 +7,8 @@ import {
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
-    Alert
+    Alert,
+    Dimensions
 } from 'react-native';
 import { Card, Button, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { MyUserContext } from '../../configs/Contexts';
 import StoreReviewSection from './StoreReviewSection';
 import DishDetail from "../Food/DishDetail";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import MapView, { Marker } from 'react-native-maps';
 
 const StoreDetail = ({ route, navigation }) => {
     const { id, name } = route.params;
@@ -30,11 +32,10 @@ const StoreDetail = ({ route, navigation }) => {
     console.log("StoreDetail - User Data:", JSON.stringify(user, null, 2));
 
     useEffect(() => {
+        console.log('StoreDetail - store object:', store);
+        console.log('StoreDetail - user object:', user);
         loadStoreDetail();
         loadStoreFoods();
-        if (user) {
-            checkFollowingStatus();
-        }
     }, [id, user]);
 
     const loadStoreDetail = async () => {
@@ -49,18 +50,7 @@ const StoreDetail = ({ route, navigation }) => {
             setLoading(false);
         }
     };
-    const checkFollowingStatus = async () => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) return;
 
-            const response = await authApi(token).get(endpoints['store-check-following'](id));
-            setIsFollowing(response.data.is_following);
-            setFollowersCount(response.data.followers_count);
-        } catch (err) {
-            console.error('Check Following Error:', err);
-        }
-    };
 
     const handleFollow = async () => {
         if (!user) {
@@ -180,29 +170,35 @@ const StoreDetail = ({ route, navigation }) => {
                                         }
 
                                         if (user && user.id) {
-                                            // Đảm bảo ID được chuyển thành string
                                             const userIdStr = user.id.toString();
-                                            const storeIdStr = store.id.toString();
-                                            
-                                            // Tạo roomId dựa trên thứ tự ID để đảm bảo tính nhất quán
-                                            const sortedIds = [userIdStr, storeIdStr].sort();
+                                            // Ưu tiên lấy store.user, fallback sang store.account
+                                            let storeUserIdStr = '';
+                                            if (store && store.user) {
+                                                storeUserIdStr = store.user.toString();
+                                            } else if (store && store.account) {
+                                                storeUserIdStr = store.account.toString();
+                                            } else {
+                                                Alert.alert('Lỗi', 'Không tìm thấy userId của chủ cửa hàng!');
+                                                return;
+                                            }
+                                            const sortedIds = [userIdStr, storeUserIdStr].sort();
                                             const roomId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
-                                            
                                             console.log("StoreDetail - Starting new chat with params:", {
-                                                storeId: storeIdStr,
+                                                storeUserId: storeUserIdStr,
                                                 userId: userIdStr,
                                                 storeName: store.name,
+                                                storeAvatar: store.avatar,
                                                 roomId: roomId
                                             });
-
                                             navigation.navigate('Main', {
                                                 screen: 'ChatTab',
                                                 params: {
                                                     screen: 'ChatScreen',
                                                     params: {
-                                                        storeId: storeIdStr,
+                                                        storeUserId: storeUserIdStr,
                                                         userId: userIdStr,
                                                         storeName: store.name,
+                                                        storeAvatar: store.avatar,
                                                         isNewChat: true
                                                     }
                                                 }
@@ -267,6 +263,46 @@ const StoreDetail = ({ route, navigation }) => {
                     <Card.Content>
                         <Text style={styles.sectionTitle}>Giới thiệu</Text>
                         <Text style={styles.description}>{store.description || 'Không có mô tả'}</Text>
+                    </Card.Content>
+                </Card>
+
+                {/* Thêm Card hiển thị địa chỉ */}
+                <Card style={styles.sectionCard}>
+                    <Card.Content>
+                        <Text style={styles.sectionTitle}>Vị trí cửa hàng</Text>
+                        {store.latitude && store.longitude ? (
+                            <View style={{ height: 200, borderRadius: 10, overflow: 'hidden', marginVertical: 10 }}>
+                                <MapView
+                                    style={{ flex: 1 }}
+                                    region={{
+                                        latitude: parseFloat(store.latitude),
+                                        longitude: parseFloat(store.longitude),
+                                        latitudeDelta: 0.01,
+                                        longitudeDelta: 0.01,
+                                    }}
+                                    scrollEnabled={false}
+                                    zoomEnabled={false}
+                                >
+                                    <Marker
+                                        coordinate={{
+                                            latitude: parseFloat(store.latitude),
+                                            longitude: parseFloat(store.longitude)
+                                        }}
+                                        title={store.name}
+                                    />
+                                </MapView>
+                            </View>
+                        ) : (
+                            <Text style={styles.noLocationText}>Không có thông tin vị trí</Text>
+                        )}
+                        {store.address ? (
+                            <View style={styles.addressContainer}>
+                                <Icon name="map-marker" size={20} color="#666" />
+                                <Text style={styles.addressText}>{store.address}</Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.noLocationText}>Không có thông tin địa chỉ</Text>
+                        )}
                     </Card.Content>
                 </Card>
 
@@ -480,6 +516,22 @@ const styles = StyleSheet.create({
         borderColor: '#2196F3',
         backgroundColor: '#fff',
         marginRight: 8,
+    },
+    addressContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    addressText: {
+        fontSize: 16,
+        color: '#444',
+        marginLeft: 8,
+        flex: 1,
+    },
+    noLocationText: {
+        textAlign: 'center',
+        color: '#666',
+        marginTop: 10,
     },
 });
 

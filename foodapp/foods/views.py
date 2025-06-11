@@ -232,23 +232,6 @@ class StoreViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIV
         serializer = self.get_serializer(stores, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'], permission_classes=[IsStoreOwner])
-    def check_following(self, request, pk=None):
-        """Kiểm tra xem người dùng có đang theo dõi cửa hàng không"""
-        store = get_object_or_404(Store, pk=pk)
-        customer = request.user.account
-
-        is_following = Follow.objects.filter(
-            customer=customer,
-            store=store
-        ).exists()
-
-        return Response({
-            "is_following": is_following,
-            "followers_count": store.followers.count()
-        })
-
-
     # Cho review(comment + rating)
     @action(detail=True, methods=['get', 'post'], url_path='reviews',
             permission_classes=[permissions.IsAuthenticatedOrReadOnly])

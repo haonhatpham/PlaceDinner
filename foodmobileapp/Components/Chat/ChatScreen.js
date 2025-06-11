@@ -6,33 +6,48 @@ import { db } from '../../configs/FirebaseConfig';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { MyUserContext } from '../../configs/Contexts';
 
+// Helper function để chuyển đổi ID an toàn
+const safeToString = (id) => {
+    if (id == null) return '';
+    try {
+        return String(id);
+    } catch (error) {
+        console.error('Error converting ID to string:', error);
+        return '';
+    }
+};
+
+// Helper function để kiểm tra ID hợp lệ
+const isValidId = (id) => {
+    const idStr = safeToString(id);
+    return idStr !== '';
+};
+
 export default function ChatScreen({ route, navigation }) {
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const scrollViewRef = useRef();
-    const { userId, storeId, storeName, isNewChat } = route.params;
+    const { userId, storeUserId, storeName, isNewChat, storeAvatar: routeStoreAvatar } = route.params;
     const user = useContext(MyUserContext);
 
     console.log("ChatScreen - User Data:", JSON.stringify(user, null, 2));
     console.log("ChatScreen - Route Params:", route.params);
 
     useEffect(() => {
-        if (!userId || !storeId) {
-            console.log("Missing userId or storeId");
+        if (!isValidId(userId) || !isValidId(storeUserId) || !user || !isValidId(user.id)) {
+            console.log("Missing or invalid required data: userId, storeUserId, or user data");
             setLoading(false);
             return;
         }
 
-        // Đảm bảo ID được lưu dưới dạng string
-        const userIdStr = userId.toString();
-        const storeIdStr = storeId.toString();
-        console.log("ChatScreen - User ID string:", userIdStr);
-        console.log("ChatScreen - Store ID string:", storeIdStr);
-
+        const userIdStr = safeToString(userId);
+        const storeUserIdStr = safeToString(storeUserId);
+        const userCurrentId = safeToString(user.id);
+        
         // Tạo roomId dựa trên thứ tự ID để đảm bảo tính nhất quán
-        const sortedIds = [userIdStr, storeIdStr].sort();
+        const sortedIds = [userIdStr, storeUserIdStr].sort();
         const roomId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
         console.log("ChatScreen - Setting up chat room:", roomId);
         
@@ -46,17 +61,17 @@ export default function ChatScreen({ route, navigation }) {
                     console.log("ChatScreen - Creating new chat room");
                     // Lưu thông tin khách hàng nếu người dùng hiện tại là cửa hàng
                     const chatData = {
-                        participants: [userIdStr, storeIdStr],
+                        participants: [userIdStr, storeUserIdStr],
                         storeName: storeName,
                         createdAt: serverTimestamp(),
                         lastMessageTime: serverTimestamp(),
                         lastMessage: '',
                         unreadCount: 0,
-                        storeId: storeIdStr,
+                        storeUserId: storeUserIdStr,
                         userId: userIdStr,
                         // Thêm thông tin vai trò
                         participantRoles: {
-                            [storeIdStr]: 'store',
+                            [storeUserIdStr]: 'store',
                             [userIdStr]: 'customer'
                         }
                     };
@@ -65,43 +80,53 @@ export default function ChatScreen({ route, navigation }) {
                     chatData.customerName = `${user.first_name} ${user.last_name}`;
                     chatData.customerAvatar = user.avatar || '';
                     chatData.storeName = storeName;
-                    chatData.storeAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png'; // Avatar mặc định cho cửa hàng lúc tạo
+                    chatData.storeAvatar = routeStoreAvatar || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png';
 
                     await setDoc(chatRef, chatData);
                     console.log("ChatScreen - Created new chat room with data:", chatData);
                 } else if (chatDoc.exists()) {
-                    // Cập nhật thông tin phòng chat nếu thiếu
+                    // Cập nhật thông tin phòng chat (bao gồm avatar) nếu cần
                     const updateData = {};
                     const currentData = chatDoc.data();
+
+                    // Cập nhật thông tin khách hàng: ưu tiên user.avatar, nếu không thì giữ currentData
+                    if (user.role !== 'Chủ cửa hàng') {
+                        // Nếu người dùng hiện tại là khách hàng, cập nhật thông tin của mình
+                        updateData.customerName = `${user.first_name} ${user.last_name}`;
+                        updateData.customerAvatar = user.avatar || currentData.customerAvatar || '';
+                    } else { 
+                        // Nếu người dùng hiện tại là chủ cửa hàng, chỉ cập nhật thông tin khách nếu thiếu
+                        if (!currentData.customerName) updateData.customerName = "Khách hàng";
+                        if (!currentData.customerAvatar) updateData.customerAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-user.png';
+                    }
+
+                    // Cập nhật thông tin cửa hàng: ưu tiên routeStoreAvatar (nếu là khách), user.avatar (nếu là chủ), nếu không thì giữ currentData
+                    if (user.role === 'Chủ cửa hàng') {
+                        // Nếu người dùng hiện tại là chủ cửa hàng, cập nhật thông tin của mình
+                        updateData.storeName = user.store.name; // Lấy tên cửa hàng từ context user
+                        updateData.storeAvatar = user.avatar; // Lấy avatar của chủ cửa hàng từ context user
+                    } else { 
+                        // Nếu người dùng hiện tại là khách hàng, cập nhật thông tin cửa hàng nếu có
+                        if (routeStoreAvatar) updateData.storeAvatar = routeStoreAvatar; // Ưu tiên avatar từ route params
+                        else if (!currentData.storeAvatar) updateData.storeAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png';
+                        
+                        if (storeName) updateData.storeName = storeName; // Ưu tiên tên từ route params
+                        else if (!currentData.storeName) updateData.storeName = "Cửa hàng";
+                    }
                     
-                    if (!currentData.storeId) updateData.storeId = storeIdStr;
+                    // Cập nhật các trường cố định khác nếu thiếu (như trước)
+                    if (!currentData.storeUserId) updateData.storeUserId = storeUserIdStr;
                     if (!currentData.userId) updateData.userId = userIdStr;
                     if (!currentData.participantRoles) {
                         updateData.participantRoles = {
-                            [storeIdStr]: 'store',
+                            [storeUserIdStr]: 'store',
                             [userIdStr]: 'customer'
                         };
                     }
                     
-                    // Cập nhật thông tin khách hàng nếu thiếu (chỉ khi người dùng hiện tại là khách hàng)
-                    if (!currentData.customerName && user.role !== 'Chủ cửa hàng') {
-                         updateData.customerName = `${user.first_name} ${user.last_name}`;
-                         updateData.customerAvatar = user.avatar || '';
-                    }
-
-                    // Cập nhật thông tin cửa hàng nếu thiếu (chỉ khi người dùng hiện tại là khách hàng)
-                    if (!currentData.storeName && user.role !== 'Chủ cửa hàng') {
-                         updateData.storeName = storeName;
-                    }
-                    // Cập nhật avatar cửa hàng nếu thiếu (chỉ khi người dùng hiện tại là khách hàng)
-                     if (!currentData.storeAvatar && user.role !== 'Chủ cửa hàng') {
-                         updateData.storeAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png';
-                     }
-
-                    
                     if (Object.keys(updateData).length > 0) {
                         await setDoc(chatRef, updateData, { merge: true });
-                        console.log("ChatScreen - Updated chat room with missing data:", updateData);
+                        console.log("ChatScreen - Updated chat room with data:", updateData);
                     }
                 }
             } catch (error) {
@@ -148,21 +173,22 @@ export default function ChatScreen({ route, navigation }) {
             console.log("ChatScreen - Cleaning up chat screen");
             unsubscribe();
         };
-    }, [userId, storeId]);
+    }, [userId, storeUserId]);
 
     const sendMessage = async () => {
-        if (!text.trim() || !userId || !storeId) {
+        if (!text.trim() || !isValidId(userId) || !isValidId(storeUserId) || !user || !isValidId(user.id)) {
             console.log("Cannot send message: invalid input or missing data");
             return;
         }
 
         try {
             setSending(true);
-            const userIdStr = userId.toString();
-            const storeIdStr = storeId.toString();
+            const userIdStr = safeToString(userId);
+            const storeUserIdStr = safeToString(storeUserId);
+            const userCurrentId = safeToString(user.id);
             
             // Tạo roomId giống như trong useEffect
-            const sortedIds = [userIdStr, storeIdStr].sort();
+            const sortedIds = [userIdStr, storeUserIdStr].sort();
             const roomId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
             console.log("ChatScreen - Sending message to room:", roomId);
             
@@ -170,9 +196,9 @@ export default function ChatScreen({ route, navigation }) {
             const messageRef = await addDoc(collection(db, "chats", roomId, "messages"), {
                 text: text.trim(),
                 timestamp: serverTimestamp(),
-                sender: user.id.toString(), // Luôn dùng ID của user đang đăng nhập
+                sender: userCurrentId,
                 senderType: user.role === 'Chủ cửa hàng' ? 'store' : 'customer',
-                senderName: `${user.first_name} ${user.last_name}`,
+                senderName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'Unknown User',
                 senderAvatar: user.avatar || ''
             });
             console.log("ChatScreen - Message sent successfully:", messageRef.id);
@@ -182,39 +208,35 @@ export default function ChatScreen({ route, navigation }) {
             const updateData = {
                 lastMessage: text.trim(),
                 lastMessageTime: serverTimestamp(),
-                lastSender: user.id.toString(),
+                lastSender: userCurrentId,
                 lastSenderType: user.role === 'Chủ cửa hàng' ? 'store' : 'customer',
-                lastSenderName: `${user.first_name} ${user.last_name}`,
-                // unreadCount: logic này cần phức tạp hơn
+                lastSenderName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'Unknown User',
             };
 
-            // Cập nhật thông tin khách hàng/cửa hàng vào chat room nếu chưa có
-            // Đảm bảo customerName, customerAvatar, storeName, storeAvatar luôn được cập nhật nếu thiếu
             const chatDoc = await getDoc(chatRef); // Lấy dữ liệu hiện tại để kiểm tra
             if (chatDoc.exists()) {
                 const currentData = chatDoc.data();
 
-                // Cập nhật thông tin khách hàng nếu thiếu
-                if (!currentData.customerName && user.role !== 'Chủ cửa hàng') {
-                     updateData.customerName = `${user.first_name} ${user.last_name}`;
-                     updateData.customerAvatar = user.avatar || '';
+                // Luôn cập nhật avatar của người gửi tin nhắn
+                if (user.role !== 'Chủ cửa hàng') {
+                    // Là khách hàng gửi tin, cập nhật avatar của khách
+                    updateData.customerName = `${user.first_name} ${user.last_name}`;
+                    updateData.customerAvatar = user.avatar || '';
+                } else { 
+                    // Là chủ cửa hàng gửi tin, cập nhật avatar của cửa hàng
+                    updateData.storeName = user.store.name; 
+                    updateData.storeAvatar = user.avatar; 
                 }
 
-                // Cập nhật thông tin cửa hàng nếu thiếu
-                 if (!currentData.storeName) {
-                      if(user.role === 'Chủ cửa hàng' && user.store && user.store.name) {
-                           // Nếu là cửa hàng gửi tin và storeName thiếu, lấy từ user context
-                           updateData.storeName = user.store.name;
-                      } else if (user.role !== 'Chủ cửa hàng') {
-                           // Nếu là khách hàng gửi tin và storeName thiếu, lấy từ route params
-                           updateData.storeName = storeName;
-                      }
-                 }
-
-                // Cập nhật avatar cửa hàng nếu thiếu
-                 if (!currentData.storeAvatar && user.role !== 'Chủ cửa hàng') {
-                     updateData.storeAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png'; // Sử dụng avatar mặc định
-                 }
+                // Cập nhật thông tin bên còn lại (để đảm bảo không bị mất data)
+                // Nếu người gửi là chủ cửa hàng, giữ thông tin khách hàng hiện có
+                if (user.role === 'Chủ cửa hàng') {
+                    if (currentData.customerName) updateData.customerName = currentData.customerName;
+                    if (currentData.customerAvatar) updateData.customerAvatar = currentData.customerAvatar;
+                } else { // Nếu người gửi là khách hàng, giữ thông tin cửa hàng hiện có
+                    if (currentData.storeName) updateData.storeName = currentData.storeName;
+                    if (currentData.storeAvatar) updateData.storeAvatar = currentData.storeAvatar;
+                }
             }
 
             await setDoc(chatRef, updateData, { merge: true });
@@ -230,19 +252,25 @@ export default function ChatScreen({ route, navigation }) {
     };
 
     const renderMessage = (message) => {
-        // So sánh sender ID của tin nhắn với ID của người dùng hiện tại
-        const isCurrentUser = message.sender === user.id.toString();
+        if (!user || !isValidId(user.id)) return null;
         
-        // Xác định avatar và tên người gửi cho tin nhắn hiển thị
-        let messageAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-user.png'; // Default customer avatar
-        let senderDisplayName = message.senderName || 'Unknown';
+        // So sánh sender ID của tin nhắn với ID của người dùng hiện tại
+        const userCurrentId = safeToString(user.id);
+        const isCurrentUser = message.sender === userCurrentId;
+        
+        // Xác định avatar để hiển thị
+        let messageAvatar = message.senderAvatar; // Ưu tiên dùng avatar thật của người gửi
 
-        if (message.senderType === 'store') {
-            // Nếu người gửi là cửa hàng, dùng avatar và tên cửa hàng
-             messageAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png'; // Default store avatar
-             // Tên cửa hàng có thể lấy từ route params hoặc từ dữ liệu chat room nếu có
-             senderDisplayName = storeName || 'Cửa hàng';
+        // Nếu không có avatar thật, dùng avatar mặc định dựa trên loại người gửi
+        if (!messageAvatar) {
+            if (message.senderType === 'store') {
+                messageAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png';
+            } else { // customer
+                messageAvatar = 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-user.png';
+            }
         }
+        
+        let senderDisplayName = message.senderName || 'Unknown';
 
         return (
             <View key={message.id} style={[

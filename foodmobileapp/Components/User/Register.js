@@ -1,18 +1,17 @@
-import { Image, ScrollView, Text, TouchableOpacity, View, Alert, StyleSheet, FlatList } from "react-native"
+import { Image, ScrollView, Text, TouchableOpacity, View, LogBox } from "react-native"
 import MyStyles from "../../styles/MyStyles"
 import { Button, HelperText, TextInput, SegmentedButtons } from "react-native-paper";
 import * as ImagePicker from 'expo-image-picker';
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import Apis, { authApis, endpoints } from "../../configs/Apis";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MyDispatchContext } from "../../configs/Contexts";
-// Không dùng các thư viện native gây lỗi
-// import { GooglePlacesAutocomplete } from 'expo-google-places-autocomplete';
-// import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 
-const GOOGLE_PLACES_API_KEY = 'AIzaSyDIIy38SH9YGf5A27UY1egi410B-jYoBFU'; // Thay thế bằng API key của bạn cho Web API
-const GOOGLE_STATIC_MAPS_API_KEY = 'AIzaSyDIIy38SH9YGf5A27UY1egi410B-jYoBFU'; // Thay thế bằng API key của bạn cho Static Maps
+LogBox.ignoreLogs([
+  'VirtualizedLists should never be nested', // Ẩn cảnh báo này
+]);
 
 const Register = () => {
     const nav = useNavigation();
@@ -24,19 +23,13 @@ const Register = () => {
     const [msg, setMsg] = useState();
     const [userType, setUserType] = useState('CUSTOMER');
     const [avatar, setAvatar] = useState(null);
-    // Khởi tạo location với giá trị ban đầu không phải tọa độ hợp lệ
     const [location, setLocation] = useState({
-        latitude: null,
-        longitude: null,
+        latitude: 10.7769,
+        longitude: 106.7009,
     });
-
-    // State cho địa chỉ nhập tay và gợi ý
-    const [addressInput, setAddressInput] = useState(user.address || '');
-    const [addressSuggestions, setAddressSuggestions] = useState([]);
-    const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-
-    // State cho địa chỉ đã chọn chính thức
-    const [selectedAddress, setSelectedAddress] = useState(user.address || '');
+    // Tách riêng state cho address
+    const [address, setAddress] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
 
     // Định nghĩa các trường thông tin cơ bản
     const basicInfo = [{
@@ -83,8 +76,14 @@ const Register = () => {
         required: true
     }];
 
-    // Định nghĩa các trường thông tin cửa hàng (Địa chỉ sẽ được xử lý riêng)
-    const storeInfoFields = [{
+    // Định nghĩa các trường thông tin cửa hàng
+    const storeInfo = [{
+        label: 'Địa chỉ',
+        field: 'address',
+        icon: 'map-marker',
+        secureTextEntry: false,
+        required: true
+    }, {
         label: 'Mô tả cửa hàng',
         field: 'description',
         icon: 'information',
@@ -100,24 +99,66 @@ const Register = () => {
         required: true
     }];
 
+    // useEffect để tự động lấy tọa độ khi address thay đổi (chỉ khi là STORE)
+    useEffect(() => {
+        const fetchCoords = async () => {
+            if (userType === 'STORE' && address && address.length > 5) {
+                setMsg('Đang tìm vị trí trên bản đồ...');
+                const coords = await getCoordinates(address);
+                console.log('Kết quả Nominatim:', coords);
+                if (coords) {
+                    setLocation({ ...coords }); // luôn tạo object mới
+                    setMsg('');
+                } else {
+                    setMsg('Không tìm thấy vị trí phù hợp với địa chỉ này!');
+                }
+            }
+        };
+        fetchCoords();
+    }, [address, userType]);
+
+    // Thêm hàm lấy tọa độ từ địa chỉ bằng Mapbox Geocoding API
+    const getCoordinates = async (address) => {
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoiY2hqbWpuaDNtIiwiYSI6ImNtYnNhaGNzYjBqbW0ya3B3cWM1NzByZTkifQ.9n1wP5AngOmQTU3DzZB7aw';
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&limit=1&language=vi`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            console.log('Kết quả Mapbox:', data);
+            if (data && data.features && data.features.length > 0) {
+                return {
+                    latitude: data.features[0].center[1],
+                    longitude: data.features[0].center[0]
+                };
+            }
+        } catch (e) {
+            console.log('Lỗi khi gọi Mapbox:', e);
+        }
+        return null;
+    };
+
     // Hàm cập nhật state
     const setState = (value, field) => {
-        setUser({...user, [field]: value})
+        setUser({ ...user, [field]: value });
+        // Nếu là trường địa chỉ thì cập nhật state address
+        if (userType === 'STORE' && field === 'address') {
+            setAddress(value);
+        }
     }
-
-    // Hàm hiển thị Alert
-    const showAlert = (title, message, onOkPress) => {
-        Alert.alert(title, message, [
-            { text: "OK", onPress: onOkPress }
-        ]);
-    };
 
     // Hàm chọn ảnh
     const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        
+        if (status !== 'granted') {
+            setMsg('Cần cấp quyền truy cập thư viện ảnh!');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
-            aspect: [4, 3],
+            aspect: [1, 1],
             quality: 1,
         });
 
@@ -126,117 +167,53 @@ const Register = () => {
         }
     };
 
-    // Hàm lấy gợi ý địa chỉ từ Google Places Autocomplete API (Web Service)
-    const fetchAddressSuggestions = async (text) => {
-        if (!text) {
-            setAddressSuggestions([]);
-            return;
-        }
-        setIsFetchingSuggestions(true);
-        try {
-            const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&language=vi&components=country:vn&key=${GOOGLE_PLACES_API_KEY}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data.status === 'OK') {
-                setAddressSuggestions(data.predictions);
-            } else {
-                setAddressSuggestions([]);
-                console.error('Lỗi khi lấy gợi ý địa chỉ:', data.status, data.error_message);
-            }
-        } catch (error) {
-            console.error('Lỗi fetch gợi ý địa chỉ:', error);
-            setAddressSuggestions([]);
-        } finally {
-            setIsFetchingSuggestions(false);
-        }
-    };
-
-    // Hàm lấy chi tiết địa điểm từ Google Places Details API (Web Service)
-    const fetchPlaceDetails = async (placeId) => {
-        try {
-            const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry,formatted_address&language=vi&key=${GOOGLE_PLACES_API_KEY}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data.status === 'OK') {
-                const { geometry, formatted_address } = data.result;
-                setSelectedAddress(formatted_address);
-                setLocation({
-                    latitude: geometry.location.lat,
-                    longitude: geometry.location.lng,
-                });
-                // Cập nhật địa chỉ vào state user cho form submit
-                setState(formatted_address, 'address');
-            } else {
-                console.error('Lỗi khi lấy chi tiết địa điểm:', data.status, data.error_message);
-                showAlert('Lỗi', 'Không thể lấy thông tin chi tiết địa điểm.');
-            }
-        } catch (error) {
-            console.error('Lỗi fetch chi tiết địa điểm:', error);
-            showAlert('Lỗi', 'Đã xảy ra lỗi khi lấy thông tin địa điểm.');
-        }
-    };
-
-    // Hàm xử lý khi người dùng chọn một gợi ý địa chỉ
-    const handleSuggestionPress = (suggestion) => {
-        // Đặt giá trị input bằng địa chỉ được chọn
-        setAddressInput(suggestion.description);
-        // Xóa danh sách gợi ý
-        setAddressSuggestions([]);
-        // Lấy chi tiết địa điểm dựa trên place_id
-        fetchPlaceDetails(suggestion.place_id);
-    };
-
     // Hàm validate form
     const validate = () => {
         // Avatar bắt buộc cho tài khoản cửa hàng
         if (userType === 'STORE' && !avatar) {
-            showAlert("Lỗi", "Vui lòng chọn ảnh đại diện cho cửa hàng!");
+            setMsg("Vui lòng chọn ảnh đại diện cho cửa hàng!");
             return false;
         }
 
         // Kiểm tra các trường thông tin cơ bản bắt buộc
         for (let field of basicInfo) {
             if (field.required && !user[field.field]) {
-                showAlert("Lỗi", `Vui lòng nhập ${field.label}!`);
+                setMsg(`Vui lòng nhập ${field.label}!`);
                 return false;
             }
         }
 
         // Kiểm tra mật khẩu khớp
         if (user.password !== user.confirm_password) {
-            showAlert("Lỗi", "Mật khẩu xác nhận không khớp!");
+            setMsg("Mật khẩu xác nhận không khớp!");
             return false;
         }
 
         // Kiểm tra email hợp lệ
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(user.email)) {
-            showAlert("Lỗi", "Email không hợp lệ!");
+            setMsg("Email không hợp lệ!");
             return false;
         }
 
         // Kiểm tra số điện thoại hợp lệ
         const phoneRegex = /^[0-9]{10}$/;
         if (!phoneRegex.test(user.phone_number)) {
-            showAlert("Lỗi", "Số điện thoại không hợp lệ (phải có 10 chữ số)!");
+            setMsg("Số điện thoại không hợp lệ (phải có 10 chữ số)!");
             return false;
         }
 
         // Kiểm tra các trường thông tin cửa hàng nếu đăng ký là cửa hàng
         if (userType === 'STORE') {
-            // Kiểm tra địa chỉ đã chọn và tọa độ
-            if (!selectedAddress || location.latitude === null || location.longitude === null) {
-                 showAlert("Lỗi", "Vui lòng chọn địa chỉ cửa hàng từ gợi ý!");
-                 return false;
-            }
-            for (let field of storeInfoFields) {
+            for (let field of storeInfo) {
                 if (field.required && !user[field.field]) {
-                    showAlert("Lỗi", `Vui lòng nhập ${field.label}!`);
+                    setMsg(`Vui lòng nhập ${field.label}!`);
                     return false;
                 }
             }
         }
       
+        setMsg('');
         return true;
     }
 
@@ -245,6 +222,13 @@ const Register = () => {
         if (validate()) {
             try {
                 setLoading(true);
+                
+                // // Log dữ liệu người dùng nhập
+                // console.log("=== FORM DATA ===");
+                // console.log("User Info:", user);
+                // console.log("User Type:", userType);
+                // console.log("Avatar:", avatar);
+                // console.log("Location:", location);
                 
                 const formData = new FormData();
                 
@@ -271,13 +255,11 @@ const Register = () => {
 
                 // Thêm thông tin cửa hàng nếu đăng ký là cửa hàng
                 if (userType === 'STORE') {
-                    formData.append('address', selectedAddress);
-                    // Đảm bảo gửi string ngay cả khi giá trị là null
-                    formData.append('latitude', location.latitude !== null ? location.latitude.toString() : '');
-                    formData.append('longitude', location.longitude !== null ? location.longitude.toString() : '');
-                    formData.append('description', user.description || '');
-                    // Xử lý opening_hours có thể là object
-                    formData.append('opening_hours', user.opening_hours ? (typeof user.opening_hours === 'object' ? JSON.stringify(user.opening_hours) : user.opening_hours) : '');
+                    formData.append('address', address);
+                    formData.append('description', user.description);
+                    formData.append('opening_hours', user.opening_hours);
+                    formData.append('latitude', location.latitude.toString());
+                    formData.append('longitude', location.longitude.toString());
                 }
 
                 const response = await Apis.post(endpoints['register'], formData, {
@@ -287,11 +269,8 @@ const Register = () => {
                 });
                 
                 if (userType === 'STORE') {
-                    showAlert(
-                        "Thành công", 
-                        "Đăng ký thành công! Vui lòng chờ admin xác nhận tài khoản.",
-                        () => nav.navigate('Đăng nhập')
-                    );
+                    setMsg("Đăng ký thành công! Vui lòng chờ admin xác nhận tài khoản.");
+                    setTimeout(() => nav.navigate('Đăng nhập'), 2000);
                 } else {
                     dispatch({
                         "type": "login",
@@ -305,9 +284,9 @@ const Register = () => {
                     for (let key in error.response.data) {
                         errorMsg += `${key}: ${error.response.data[key].join(', ')}\n`;
                     }
-                    showAlert("Lỗi", errorMsg);
+                    setMsg(errorMsg);
                 } else {
-                    showAlert("Lỗi", "Đăng ký thất bại! Vui lòng thử lại sau.");
+                    setMsg("Đăng ký thất bại! Vui lòng thử lại sau.");
                 }
                 console.error('Lỗi đăng ký:', error);
             } finally {
@@ -318,10 +297,24 @@ const Register = () => {
         
     }
 
-    // Tạo URL cho Google Static Map Image
-    const staticMapImageUrl = location.latitude !== null && location.longitude !== null
-        ? `https://maps.googleapis.com/maps/api/staticmap?center=${location.latitude},${location.longitude}&zoom=15&size=400x200&markers=color:red%7C${location.latitude},${location.longitude}&key=${GOOGLE_STATIC_MAPS_API_KEY}`
-        : null; // Hoặc một placeholder image URL
+    // Hàm lấy gợi ý địa chỉ từ Mapbox
+    const fetchSuggestions = async (query) => {
+        if (!query || query.length < 3) {
+            setSuggestions([]);
+            return;
+        }
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoiY2hqbWpuaDNtIiwiYSI6ImNtYnNhaGNzYjBqbW0ya3B3cWM1NzByZTkifQ.9n1wP5AngOmQTU3DzZB7aw';
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&language=vi`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data && data.features) {
+                setSuggestions(data.features);
+            }
+        } catch (e) {
+            setSuggestions([]);
+        }
+    };
 
     return (
         <ScrollView style={MyStyles.container}>
@@ -383,75 +376,60 @@ const Register = () => {
             {/* Form thông tin cửa hàng */}
             {userType === 'STORE' && (
                 <>
-                    {/* TextInput cho Địa chỉ với gợi ý */}
-                    <View style={MyStyles.m}>
-                        <Text style={[MyStyles.label, { marginBottom: 10 }]}>
-                            Địa chỉ cửa hàng *
-                        </Text>
+                    {/* Địa chỉ với autocomplete đẹp */}
+                    <View style={{ position: 'relative', zIndex: 20 }}>
                         <TextInput
-                            style={styles.textInput}
                             mode="outlined"
-                            placeholder="Nhập địa chỉ cửa hàng"
-                            value={addressInput}
-                            onChangeText={(text) => {
-                                setAddressInput(text);
-                                fetchAddressSuggestions(text); // Gọi API lấy gợi ý
-                                setSelectedAddress(''); // Reset địa chỉ đã chọn khi người dùng gõ lại
-                                setLocation({ latitude: null, longitude: null }); // Reset tọa độ
+                            label="Địa chỉ *"
+                            value={address}
+                            onChangeText={text => {
+                                setAddress(text);
+                                setState(text, 'address');
+                                fetchSuggestions(text);
                             }}
                             right={<TextInput.Icon icon="map-marker" />}
+                            style={MyStyles.m}
                         />
-                        
-                        {/* Danh sách gợi ý địa chỉ */}
-                        {addressSuggestions.length > 0 && (
-                            <View style={styles.suggestionsContainer}>
-                                <FlatList
-                                    data={addressSuggestions}
-                                    keyExtractor={(item) => item.place_id}
-                                    renderItem={({ item }) => (
-                                        <TouchableOpacity 
-                                            style={styles.suggestionItem}
-                                            onPress={() => handleSuggestionPress(item)}
-                                        >
-                                            <Text>{item.description}</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                    keyboardShouldPersistTaps='handled' // Giúp danh sách gợi ý không biến mất khi tap
-                                />
+                        {suggestions.length > 0 && (
+                            <View style={{
+                                position: 'absolute',
+                                top: 60,
+                                left: 0,
+                                right: 0,
+                                backgroundColor: 'white',
+                                borderRadius: 8,
+                                borderWidth: 1,
+                                borderColor: '#ccc',
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.2,
+                                shadowRadius: 4,
+                                elevation: 5,
+                                maxHeight: 180,
+                                zIndex: 100,
+                            }}>
+                                {suggestions.map(item => (
+                                    <TouchableOpacity
+                                        key={item.id}
+                                        onPress={() => {
+                                            setAddress(item.place_name);
+                                            setState(item.place_name, 'address');
+                                            setSuggestions([]);
+                                            setLocation({
+                                                latitude: item.center[1],
+                                                longitude: item.center[0]
+                                            });
+                                        }}
+                                        style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+                                    >
+                                        <Text style={{ color: '#333' }}>{item.place_name}</Text>
+                                    </TouchableOpacity>
+                                ))}
                             </View>
                         )}
                     </View>
-
-                    {/* Hiển thị thông tin vị trí đã chọn và bản đồ tĩnh */}
-                    {(selectedAddress || (location.latitude !== null && location.longitude !== null)) ? (
-                         <View style={[MyStyles.m, styles.locationInfoContainer]}>
-                             <Text style={[MyStyles.label, { marginBottom: 10 }]}>
-                                Thông tin vị trí và Bản đồ
-                            </Text>
-                             <View>
-                                 <Text style={styles.locationText}>Địa chỉ: {selectedAddress || 'Đang cập nhật...'}</Text>
-                                 {location.latitude !== null && location.longitude !== null && (
-                                     <Text style={styles.locationText}>Tọa độ: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</Text>
-                                 )}
-                                 
-                                 {/* Hiển thị ảnh bản đồ tĩnh */}
-                                 {staticMapImageUrl && (
-                                     <Image 
-                                         style={styles.staticMapImage}
-                                         source={{ uri: staticMapImageUrl }}
-                                         resizeMode="cover"
-                                     />
-                                 )}
-                             </View>
-                         </View>
-                     ) : (
-                        <View style={[MyStyles.m, styles.locationInfoContainer]}>
-                             <Text style={styles.locationText}>Nhập địa chỉ để thấy gợi ý và bản đồ.</Text>
-                         </View>
-                     )}
-
-                    {/* Form thông tin cửa hàng còn lại (Mô tả, Giờ mở cửa) */}
-                    {storeInfoFields.map(field => (
+                    {/* Các trường còn lại */}
+                    {storeInfo.filter(field => field.field !== 'address').map(field => (
                         <TextInput 
                             key={field.field}
                             style={MyStyles.m}
@@ -465,6 +443,34 @@ const Register = () => {
                             right={<TextInput.Icon icon={field.icon} />}
                         />
                     ))}
+
+                    {/* Bản đồ chọn vị trí */}
+                    <View style={MyStyles.m}>
+                        <Text style={[MyStyles.label, { marginBottom: 10 }]}>Chọn vị trí cửa hàng *</Text>
+                        <MapView
+                            style={{ height: 200, borderRadius: 8 }}
+                            region={{
+                                latitude: location.latitude,
+                                longitude: location.longitude,
+                                latitudeDelta: 0.01,
+                                longitudeDelta: 0.01,
+                            }}
+                            onPress={(e) => setLocation({ ...e.nativeEvent.coordinate })}
+                        >
+                            <Marker
+                                coordinate={location}
+                                title="Vị trí cửa hàng"
+                                draggable
+                                onDragEnd={e => setLocation({ ...e.nativeEvent.coordinate })}
+                            />
+                        </MapView>
+                        {/* Hiển thị thông báo lỗi/thành công liên quan đến map */}
+                        {msg && (
+                            <HelperText type="error" visible={true} style={MyStyles.m}>
+                                {msg}
+                            </HelperText>
+                        )}
+                    </View>
                 </>
             )}
 
@@ -488,59 +494,15 @@ const Register = () => {
                     Đã có tài khoản? Đăng nhập ngay
                 </Text>
             </TouchableOpacity>
+            {/* Hiển thị thông báo lỗi/thành công */}
+            {msg && (
+                <HelperText type="error" visible={true} style={MyStyles.m}>
+                    {msg}
+                </HelperText>
+            )}
+          
         </ScrollView>
     );
 }
-
-// Thêm và cập nhật styles
-const styles = StyleSheet.create({
-    textInput: {
-        // Styles cho TextInput địa chỉ
-        height: 50,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        backgroundColor: '#fff',
-    },
-    suggestionsContainer: {
-        // Container cho danh sách gợi ý
-        maxHeight: 200, // Giới hạn chiều cao danh sách gợi ý
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        marginTop: 5,
-        backgroundColor: '#fff',
-        // Cần zIndex để đảm bảo danh sách gợi ý hiển thị trên các element khác
-        zIndex: 1000,
-    },
-    suggestionItem: {
-        // Style cho mỗi mục gợi ý
-        padding: 13,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
-    locationInfoContainer: {
-        marginTop: 15, // Khoảng cách trên
-        marginBottom: 15,
-        padding: 15,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        zIndex: 0, // Đảm bảo hiển thị dưới danh sách gợi ý
-    },
-    locationText: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 5,
-    },
-    staticMapImage: {
-        width: '100%',
-        height: 200, // Chiều cao của ảnh bản đồ
-        borderRadius: 8,
-        marginTop: 10,
-    }
-});
 
 export default Register;

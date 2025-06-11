@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Cấu hình base URL cho API
-export const BASE_URL = 'http://192.168.100.22:8000';
+export const BASE_URL = 'https://phamnhathao.pythonanywhere.com/';
 
 // Hàm xử lý URL ảnh
 export const getImageUrl = (imagePath) => {
@@ -20,7 +20,6 @@ export const endpoints = {
     'store_detail': (id) => `/stores/${id}/`,
     'store-reviews': (id) => `/stores/${id}/reviews/`,
     'store-follow': (id) => `/stores/${id}/follow/`,
-    'store-check-following': (id) => `/stores/${id}/check_following/`,
     'store-following': '/stores/following/',
     'update-opening-hours': (id) => `/stores/${id}/update_opening_hours/`,
 

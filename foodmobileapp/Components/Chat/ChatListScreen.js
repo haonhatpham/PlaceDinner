@@ -17,25 +17,17 @@ const ChatListScreen = ({ navigation }) => {
 
         const setupChatListener = async () => {
             if (!user || !user.id) {
+                console.log("Missing user data");
                 setLoading(false);
                 return;
             }
 
             try {
-                console.log("ChatListScreen - Setting up chat listener for user:", user);
-                const userIdStr = user.id.toString();
-                console.log("ChatListScreen - User ID string:", userIdStr);
-                console.log("ChatListScreen - User role:", user.role);
-
-                // Xác định ID để tìm kiếm phòng chat
-                let searchId = userIdStr;
-                if (user.role === 'Chủ cửa hàng' && user.store) {
-                    // Nếu là cửa hàng, sử dụng store.id để tìm kiếm
-                    searchId = user.store.id.toString();
-                    console.log("ChatListScreen - Using store ID for search:", searchId);
+                const userIdStr = user.id ? user.id.toString() : '';
+                if (!userIdStr) {
+                    throw new Error("Invalid user ID format");
                 }
-
-                // Query để lấy tất cả các cuộc trò chuyện
+                let searchId = userIdStr;
                 const q = query(
                     collection(db, "chats"),
                     where("participants", "array-contains", searchId),
@@ -49,34 +41,37 @@ const ChatListScreen = ({ navigation }) => {
                             const data = doc.data();
                             console.log("ChatListScreen - Processing chat doc ID:", doc.id, "data:", data);
                             
-                            // Đảm bảo participants là array của string
-                            const participants = data.participants.map(id => id.toString());
+                            const participants = Array.isArray(data.participants) 
+                                ? data.participants.filter(id => id != null).map(id => id.toString())
+                                : [];
+                            
+                            if (participants.length === 0) {
+                                console.log("ChatListScreen - Invalid participants data, skipping chat:", doc.id);
+                                return null;
+                            }
+                            
                             console.log("ChatListScreen - Participants:", participants);
                             
-                            // Xác định người tham gia khác
                             const otherParticipantId = participants.find(id => id !== searchId);
+                            if (!otherParticipantId) {
+                                console.log("ChatListScreen - Could not find other participant, skipping chat:", doc.id);
+                                return null;
+                            }
                             console.log("ChatListScreen - Other participant ID:", otherParticipantId);
 
-                            // Xác định tên hiển thị và avatar dựa trên vai trò và người tham gia khác
                             let displayName, displayAvatar;
                             const isStore = user.role === 'Chủ cửa hàng';
 
                             if (isStore) {
-                                // Nếu là cửa hàng, hiển thị thông tin khách hàng
-                                // Lấy tên và avatar khách hàng từ dữ liệu chat room
-                                // Sử dụng toán tử Optional Chaining (?.) để truy cập an toàn
                                 displayName = data.customerName || (data.lastSenderType === 'customer' ? data.lastSenderName : `Khách hàng ${otherParticipantId}`); 
                                 displayAvatar = data.customerAvatar || (data.lastSenderType === 'customer' ? data.senderAvatar : 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-user.png');
                             } else {
-                                // Nếu là khách hàng, hiển thị thông tin cửa hàng
-                                // Sử dụng toán tử Optional Chaining (?.) để truy cập an toàn
                                 displayName = data.storeName || "Cửa hàng";
-                                displayAvatar = data.storeAvatar || 'https://res.cloudinary.com/dtcxjo4ns/image/upload/v1745666322/default-store.png';
+                                displayAvatar = data.storeAvatar;
                             }
 
                             console.log("ChatListScreen - Determined displayName:", displayName, "displayAvatar:", displayAvatar);
 
-                            // Đảm bảo có đầy đủ thông tin cần thiết
                             const chatData = {
                                 id: doc.id,
                                 ...data,
@@ -84,17 +79,17 @@ const ChatListScreen = ({ navigation }) => {
                                 displayName: displayName,
                                 displayAvatar: displayAvatar,
                                 otherParticipantId: otherParticipantId,
-                                // Đảm bảo có storeId và userId
-                                storeId: data.storeId || (isStore ? searchId : otherParticipantId),
-                                userId: data.userId || (isStore ? otherParticipantId : searchId)
+                                storeUserId: isStore ? searchId : otherParticipantId,
+                                userId: isStore ? otherParticipantId : searchId
                             };
 
                             console.log("ChatListScreen - Processed chat data:", chatData);
                             return chatData;
                         }));
                         
-                        console.log("ChatListScreen - Final chat list:", chatList);
-                        setChats(chatList);
+                        const validChatList = chatList.filter(chat => chat != null);
+                        console.log("ChatListScreen - Final chat list:", validChatList);
+                        setChats(validChatList);
                         setLoading(false);
                     },
                     (error) => {
@@ -119,26 +114,20 @@ const ChatListScreen = ({ navigation }) => {
         console.log("ChatListScreen - Rendering chat item:", item);
         console.log("ChatListScreen - Current user ID:", userIdStr);
         
-        // Xác định xem người dùng hiện tại là khách hàng hay cửa hàng
         const isStore = user.role === 'Chủ cửa hàng';
         console.log("ChatListScreen - Is current user store:", isStore);
         
-        // Xác định storeId và userId dựa trên vai trò
-        let storeId, userId;
+        let storeUserId, userId;
         if (isStore) {
-            // Nếu là cửa hàng, storeId là ID của cửa hàng
-            storeId = user.store.id.toString();
-            // userId là ID của người tham gia khác (khách hàng)
+            storeUserId = userIdStr;
             userId = item.otherParticipantId;
         } else {
-            // Nếu là khách hàng, storeId là ID của người tham gia khác (cửa hàng)
-            storeId = item.otherParticipantId;
-            // userId là ID của người dùng hiện tại
+            storeUserId = item.otherParticipantId;
             userId = userIdStr;
         }
         
         console.log("ChatListScreen - Navigation params:", {
-            storeId,
+            storeUserId,
             userId,
             storeName: item.displayName,
             isNewChat: false
@@ -149,7 +138,7 @@ const ChatListScreen = ({ navigation }) => {
                 style={styles.chatItem}
                 onPress={() => {
                     navigation.navigate('ChatScreen', {
-                        storeId,
+                        storeUserId,
                         userId,
                         storeName: item.displayName,
                         isNewChat: false
